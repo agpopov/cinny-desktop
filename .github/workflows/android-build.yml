@@ -3,9 +3,9 @@ on:
   workflow_dispatch:
     inputs:
       source_ref:
-        description: Source commit to build
-        required: true
-        default: corp
+        description: Optional source tag or commit (empty means the selected workflow commit)
+        required: false
+        default: ''
 permissions:
   contents: read
 jobs:
@@ -16,7 +16,7 @@ jobs:
         id: source
         env:
           GH_TOKEN: ${{ github.token }}
-          BUILD_SOURCE_REF: ${{ inputs.source_ref }}
+          BUILD_SOURCE_REF: ${{ inputs.source_ref || github.sha }}
         run: echo "sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/$BUILD_SOURCE_REF" --jq .sha)" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
