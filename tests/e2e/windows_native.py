@@ -1,6 +1,8 @@
 """Smoke-test the installed NSIS package through its real Windows WebView2."""
 import json
 import os
+import ctypes
+from contextlib import contextmanager
 from pathlib import Path
 import subprocess
 import time
@@ -17,7 +19,36 @@ env['WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS'] = '--remote-debugging-port=9222'
 env['WEBVIEW2_USER_DATA_FOLDER'] = str((out / 'webview-profile').resolve())
 opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 errors = []
-with (out / 'native-launch.log').open('w') as log:
+
+
+@contextmanager
+def webview_debug_policy():
+    # WebView2 150+ ignores WEBVIEW2_* overrides for an elevated host. GitHub's
+    # Windows runner is elevated; use an app-specific HKLM policy only in that
+    # disposable CI VM, and restore it even when the test fails.
+    if not ctypes.windll.shell32.IsUserAnAdmin():
+        yield
+        return
+    if os.environ.get('GITHUB_ACTIONS') != 'true':
+        raise RuntimeError('Run this test without administrator elevation outside GitHub Actions')
+    import winreg
+    path = r'SOFTWARE\Policies\Microsoft\Edge\WebView2\AdditionalBrowserArguments'
+    with winreg.CreateKeyEx(winreg.HKEY_LOCAL_MACHINE, path, access=winreg.KEY_ALL_ACCESS) as key:
+        try:
+            previous = winreg.QueryValueEx(key, binary.name)
+        except FileNotFoundError:
+            previous = None
+        winreg.SetValueEx(key, binary.name, 0, winreg.REG_SZ, env['WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS'])
+        try:
+            yield
+        finally:
+            if previous is None:
+                winreg.DeleteValue(key, binary.name)
+            else:
+                winreg.SetValueEx(key, binary.name, 0, previous[1], previous[0])
+
+
+with webview_debug_policy(), (out / 'native-launch.log').open('w') as log:
     app = subprocess.Popen([str(binary)], env=env, stdout=log, stderr=subprocess.STDOUT)
     try:
         for attempt in range(120):
