@@ -25,7 +25,7 @@ jobs:
       - name: Install cinny dependencies
         run: cd cinny && npm ci
       - name: Test unread receipt handling
-        run: cd cinny && npm run test:unread
+        run: cd cinny && npm run test:unread && npm run test:mentions && npm run typecheck
       - name: Install tauri dependencies
         run: npm ci
       - name: Build desktop app with Tauri
