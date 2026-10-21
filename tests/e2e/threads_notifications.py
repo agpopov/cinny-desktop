@@ -256,7 +256,7 @@ with sync_playwright() as p:
     page.wait_for_timeout(2000)
     page.screenshot(path=SHOTS + "/07-settings.png", full_page=True)
     check("из трея открываются настройки уведомлений", page.locator("text=Тихие часы по расписанию").count() >= 1)
-    check("в настройках есть блок «Приложение»", page.locator("text=Запускать вместе с Windows").count() >= 1)
+    check("в настройках есть блок «Приложение»", page.locator("text=Запускать при входе в систему").count() >= 1)
 
     check("нет JS-ошибок на странице", not errors, "; ".join(errors)[:500])
     browser.close()

@@ -1,19 +1,21 @@
 use crate::desktop;
 
-use tauri::{webview::{NewWindowResponse, WebviewWindowBuilder}, Manager, WebviewUrl, WindowEvent};
 #[cfg(target_os = "macos")]
 use tauri::TitleBarStyle;
+use tauri::{
+    webview::{NewWindowResponse, WebviewWindowBuilder},
+    Manager, WebviewUrl, WindowEvent,
+};
 use tauri_plugin_autostart::MacosLauncher;
-use tauri_plugin_window_state::StateFlags;
 use tauri_plugin_opener::OpenerExt;
+use tauri_plugin_window_state::StateFlags;
 
-#[cfg(feature = "updater")]
-use tauri_plugin_updater::UpdaterExt;
 #[cfg(feature = "updater")]
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
+#[cfg(feature = "updater")]
+use tauri_plugin_updater::UpdaterExt;
 
 pub fn run() {
-    
     for key in ["NO_PROXY", "no_proxy"] {
         let current_val = std::env::var(key).unwrap_or_default();
         if !current_val.contains("localhost") {
@@ -139,20 +141,21 @@ pub fn run() {
             };
 
             let app_handle = app.handle().clone();
-            let window_builder = WebviewWindowBuilder::new(app, desktop::MAIN_WINDOW.to_string(), window_url)
-                .title("Cinny")
-                .inner_size(1100.0, 760.0)
-                .min_inner_size(360.0, 480.0)
-                .visible(!start_hidden)
-                .disable_drag_drop_handler()
-                .on_new_window(move |url, _features| {
-                    let _ = app_handle.opener().open_url(url.as_str(), None::<&str>);
-                    NewWindowResponse::Deny
-                });
+            let window_builder =
+                WebviewWindowBuilder::new(app, desktop::MAIN_WINDOW.to_string(), window_url)
+                    .title("Cinny")
+                    .inner_size(1100.0, 760.0)
+                    .min_inner_size(360.0, 480.0)
+                    .visible(!start_hidden)
+                    .disable_drag_drop_handler()
+                    .on_new_window(move |url, _features| {
+                        let _ = app_handle.opener().open_url(url.as_str(), None::<&str>);
+                        NewWindowResponse::Deny
+                    });
 
             #[cfg(target_os = "macos")]
             let window_builder = window_builder.title_bar_style(TitleBarStyle::Transparent);
-            
+
             window_builder.build()?;
             Ok(())
         })

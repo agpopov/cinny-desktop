@@ -22,7 +22,10 @@ class CorpPlugin(private val activity: Activity) : Plugin(activity) {
         val raw = intent?.getStringExtra("LocalNotficationObject") ?: return
         try {
             val target = JSONObject(raw).optJSONObject("extra")?.optJSONObject("target")
-            if (target != null && target.has("roomId")) pending = JSObject(target.toString())
+            if (target != null && target.has("roomId")) {
+                pending = JSObject(target.toString())
+                intent.removeExtra("LocalNotficationObject")
+            }
         } catch (_: Exception) { /* Ignore malformed or unrelated intents. */ }
     }
 

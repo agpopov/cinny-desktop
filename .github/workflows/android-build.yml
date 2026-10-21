@@ -12,9 +12,15 @@ jobs:
   android:
     runs-on: ubuntu-22.04
     steps:
+      - name: Resolve source to immutable commit
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_SOURCE_REF: ${{ inputs.source_ref }}
+        run: echo "sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/$BUILD_SOURCE_REF" --jq .sha)" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ inputs.source_ref }}
+          ref: ${{ steps.source.outputs.sha }}
           submodules: recursive
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
@@ -24,7 +30,17 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v3
+      - name: Install pinned Android command-line tools
+        run: |
+          sdk_root="$RUNNER_TEMP/cinny-android-sdk"
+          mkdir -p "$sdk_root/cmdline-tools"
+          curl -fL --retry 3 https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip -o "$RUNNER_TEMP/android-tools.zip"
+          echo "4e4c464f145a7512b57d088ac6c278c03c9eea610886b35a5e0804e74eedf583  $RUNNER_TEMP/android-tools.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/android-tools.zip" -d "$RUNNER_TEMP/android-tools"
+          mv "$RUNNER_TEMP/android-tools/cmdline-tools" "$sdk_root/cmdline-tools/latest"
+          echo "ANDROID_HOME=$sdk_root" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$sdk_root" >> "$GITHUB_ENV"
+          echo "$sdk_root/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
@@ -34,8 +50,9 @@ jobs:
           key: android
       - name: Install Android toolchain
         run: |
-          sdkmanager 'ndk;27.2.12479018' 'platforms;android-35' 'build-tools;35.0.0'
-          echo "NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager 'ndk;28.2.13676358' 'platforms;android-36' 'build-tools;36.0.0' 'platform-tools'
+          echo "NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358" >> "$GITHUB_ENV"
       - name: Install and test web dependencies
         run: |
           npm ci
@@ -62,6 +79,8 @@ jobs:
         run: |
           find src-tauri/gen/android/app/build/outputs -type f \( -name '*.apk' -o -name '*.aab' \) -exec cp {} android-artifacts/ \; || true
           tar -czf android-artifacts/generated-android-source.tar.gz --exclude=build --exclude=.gradle src-tauri/gen/android
+      - name: Install Android WebView test client
+        run: python3 -m pip install playwright==1.64.0
       - name: Enable emulator acceleration
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -79,6 +98,7 @@ jobs:
             adb shell am start -n in.cinny.app/.MainActivity
             sleep 25
             adb shell pidof in.cinny.app
+            python3 tests/e2e/android_native.py
             adb shell uiautomator dump /sdcard/window.xml
             adb pull /sdcard/window.xml android-artifacts/android-startup.xml
             adb exec-out screencap -p > android-artifacts/android-startup.png
