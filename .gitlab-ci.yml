@@ -1,0 +1,48 @@
+# Сборка корпоративного Cinny Desktop.
+#
+# web:check   — линтер и сборка веб-части на любом Linux-раннере с Docker.
+# windows:build — установщики .msi и .exe; нужен Windows-раннер (shell, PowerShell)
+#                с тегом `windows`, на нём: Node.js 24, Rust (stable-x86_64-pc-windows-msvc),
+#                Visual Studio Build Tools (C++), WebView2 (есть в Windows 10/11).
+
+stages:
+  - check
+  - build
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+  GIT_SUBMODULE_DEPTH: 1
+  NODE_OPTIONS: "--max_old_space_size=4096"
+
+web:check:
+  stage: check
+  image: node:24
+  script:
+    - cd cinny
+    - npm ci
+    - npx eslint --quiet src
+    - npm run build
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_TAG
+
+windows:build:
+  stage: build
+  tags:
+    - windows
+  script:
+    - cd cinny; npm ci; cd ..
+    - npm ci
+    - npm run tauri build
+  artifacts:
+    name: "cinny-desktop-$CI_COMMIT_REF_SLUG"
+    paths:
+      - src-tauri/target/release/bundle/msi/*.msi
+      - src-tauri/target/release/bundle/nsis/*.exe
+    expire_in: 30 days
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_TAG
+    - when: manual
+      allow_failure: true

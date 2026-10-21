@@ -4,8 +4,13 @@
 )]
 
 // mod menu;
+mod desktop;
 
-use tauri::{webview::{NewWindowResponse, WebviewWindowBuilder}, WebviewUrl, TitleBarStyle};
+use tauri::{webview::{NewWindowResponse, WebviewWindowBuilder}, Manager, WebviewUrl, WindowEvent};
+#[cfg(target_os = "macos")]
+use tauri::TitleBarStyle;
+use tauri_plugin_autostart::MacosLauncher;
+use tauri_plugin_window_state::StateFlags;
 use tauri_plugin_opener::OpenerExt;
 
 #[cfg(feature = "updater")]
@@ -45,11 +50,52 @@ pub fn run() {
     }
 
     builder
+        // Второй запуск (ярлык, автозапуск) просто показывает уже открытое окно.
+        // Регистрируется первым, как требует плагин.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            desktop::show_main_window(app);
+        }))
+        .plugin(tauri_plugin_autostart::init(
+            MacosLauncher::LaunchAgent,
+            Some(vec![desktop::MINIMIZED_ARG]),
+        ))
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_localhost::Builder::new(port).build())
-        .plugin(tauri_plugin_window_state::Builder::default().build())
+        // Видимость окна не сохраняем: иначе после «свернуть в трей → выход»
+        // следующий запуск начнётся со скрытым окном.
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(StateFlags::all() & !StateFlags::VISIBLE)
+                .build(),
+        )
         .plugin(tauri_plugin_opener::init())
+        .invoke_handler(tauri::generate_handler![
+            desktop::desktop_notify,
+            desktop::desktop_set_unread,
+            desktop::desktop_set_dnd,
+            desktop::desktop_get_settings,
+            desktop::desktop_set_settings,
+            desktop::desktop_show_window,
+        ])
+        .on_window_event(|window, event| {
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                if window.label() == desktop::MAIN_WINDOW
+                    && desktop::should_hide_on_close(window.app_handle())
+                {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
+        })
         .setup(move |app| {
+            desktop::init_state(app.handle());
+            desktop::register_app_user_model_id(app.handle());
+            desktop::setup_tray(app.handle())?;
+
+            // При автозапуске (флаг --minimized) стартуем свёрнутыми в трей.
+            let start_hidden = std::env::args().any(|a| a == desktop::MINIMIZED_ARG)
+                && desktop::load_settings(app.handle()).start_minimized;
             #[cfg(feature = "updater")]
             {
                 let handle = app.handle().clone();
@@ -96,8 +142,9 @@ pub fn run() {
             };
 
             let app_handle = app.handle().clone();
-            let window_builder = WebviewWindowBuilder::new(app, "main".to_string(), window_url)
+            let window_builder = WebviewWindowBuilder::new(app, desktop::MAIN_WINDOW.to_string(), window_url)
                 .title("Cinny")
+                .visible(!start_hidden)
                 .disable_drag_drop_handler()
                 .on_new_window(move |url, _features| {
                     let _ = app_handle.opener().open_url(url.as_str(), None::<&str>);

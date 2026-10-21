@@ -1,0 +1,17 @@
+{
+  "identifier": "corp-desktop",
+  "description": "Команды десктопной интеграции: уведомления, трей, автозапуск",
+  "local": true,
+  "remote": {
+    "urls": ["http://localhost:44548"]
+  },
+  "windows": ["main"],
+  "permissions": [
+    "allow-desktop-notify",
+    "allow-desktop-set-unread",
+    "allow-desktop-set-dnd",
+    "allow-desktop-get-settings",
+    "allow-desktop-set-settings",
+    "allow-desktop-show-window"
+  ]
+}
