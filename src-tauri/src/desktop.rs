@@ -179,6 +179,9 @@ fn update_tray(app: &AppHandle<Wry>) {
     let tooltip = match (dnd, total) {
         (true, 0) => "Cinny — не беспокоить".to_string(),
         (true, n) => format!("Cinny — не беспокоить, непрочитанных: {n}"),
+        (false, 0) if matches!(kind, TrayKind::Unread | TrayKind::Highlight) => {
+            "Cinny — есть непрочитанные сообщения".to_string()
+        }
         (false, 0) => "Cinny".to_string(),
         (false, n) => format!("Cinny — непрочитанных: {n}"),
     };
@@ -528,6 +531,9 @@ pub struct UnreadPayload {
     pub total: u32,
     /// Есть ли упоминания / личные сообщения.
     pub highlight: bool,
+    /// Есть непрочитанные сообщения, включая комнаты без числового счётчика.
+    #[serde(default)]
+    pub has_unread: bool,
     /// PNG-бейдж для панели задач в base64 (рисует веб-часть).
     pub badge: Option<String>,
 }
@@ -553,7 +559,7 @@ pub fn desktop_set_unread(app: AppHandle<Wry>, payload: UnreadPayload) {
     *state.unread_total.lock().unwrap() = payload.total;
     *state.tray_kind.lock().unwrap() = if payload.highlight {
         TrayKind::Highlight
-    } else if payload.total > 0 {
+    } else if payload.total > 0 || payload.has_unread {
         TrayKind::Unread
     } else {
         TrayKind::Default
@@ -561,7 +567,7 @@ pub fn desktop_set_unread(app: AppHandle<Wry>, payload: UnreadPayload) {
     update_tray(&app);
 
     if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
-        let badge = if payload.total > 0 {
+        let badge = if payload.total > 0 || payload.has_unread {
             payload.badge.as_deref()
         } else {
             None

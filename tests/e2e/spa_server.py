@@ -7,4 +7,4 @@ class H(http.server.SimpleHTTPRequestHandler):
         if not os.path.exists(path): self.path = '/index.html'
         return super().send_head()
     def log_message(self, *a): pass
-http.server.ThreadingHTTPServer(('127.0.0.1', 8080), H).serve_forever()
+http.server.ThreadingHTTPServer(('127.0.0.1', int(os.environ.get('PORT', '8080'))), H).serve_forever()
