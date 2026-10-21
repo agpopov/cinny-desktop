@@ -1,0 +1,116 @@
+name: Corp platform builds
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Immutable source tag or commit to build
+        required: true
+        default: v4.12.10
+      release_tag:
+        description: Existing release version
+        required: true
+        default: v4.12.10
+permissions:
+  contents: read
+jobs:
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-x86_64
+            os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+          - platform: macos-universal
+            os: macos-14
+            target: universal-apple-darwin
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ inputs.source_ref }}
+          submodules: recursive
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Add macOS targets
+        if: runner.os == 'macOS'
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+      - name: Install Linux build and smoke-test dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf xvfb xdotool imagemagick dbus-x11
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: ${{ matrix.platform }}
+      - name: Install dependencies and test read handling
+        run: |
+          npm ci
+          npm ci --prefix cinny
+          npm run test:unread --prefix cinny
+      - name: Record source provenance
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          mkdir -p platform-artifacts
+          git rev-parse HEAD > platform-artifacts/desktop-source.txt
+          git -C cinny rev-parse HEAD > platform-artifacts/web-source.txt
+          node -e 'const p=require("./package.json"); if ("v"+p.version!==process.env.RELEASE_TAG) throw Error("Release version mismatch")'
+      - name: Build Linux packages
+        if: runner.os == 'Linux'
+        env:
+          NODE_OPTIONS: --max_old_space_size=4096
+          APPIMAGE_EXTRACT_AND_RUN: '1'
+        run: |
+          npm run tauri -- build --target x86_64-unknown-linux-gnu --bundles deb,appimage
+          cp src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/deb/*.deb platform-artifacts/
+          cp src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage platform-artifacts/
+          dpkg-deb --info platform-artifacts/*.deb
+      - name: Linux native launch smoke test
+        if: runner.os == 'Linux'
+        run: |
+          xvfb-run -a dbus-run-session -- bash -euc '
+            src-tauri/target/x86_64-unknown-linux-gnu/release/cinny > platform-artifacts/native-launch.log 2>&1 &
+            app_pid=$!
+            trap "kill $app_pid 2>/dev/null || true" EXIT
+            for attempt in $(seq 1 30); do
+              kill -0 "$app_pid"
+              if xdotool search --onlyvisible --name Cinny >/dev/null 2>&1; then break; fi
+              sleep 1
+            done
+            xdotool search --onlyvisible --name Cinny
+            sleep 15
+            kill -0 "$app_pid"
+            import -window root platform-artifacts/linux-startup.png
+          '
+      - name: Build macOS Universal packages with ad-hoc signing
+        if: runner.os == 'macOS'
+        env:
+          NODE_OPTIONS: --max_old_space_size=4096
+        run: |
+          echo '{"bundle":{"macOS":{"minimumSystemVersion":"11.0","signingIdentity":"-"}}}' > src-tauri/tauri.platform-ci.conf.json
+          npm run tauri -- build --target universal-apple-darwin --bundles app,dmg --config src-tauri/tauri.platform-ci.conf.json
+          cp src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg platform-artifacts/
+          ditto -c -k --sequesterRsrc --keepParent src-tauri/target/universal-apple-darwin/release/bundle/macos/Cinny.app platform-artifacts/Cinny_4.12.10_universal.app.zip
+          lipo -archs src-tauri/target/universal-apple-darwin/release/bundle/macos/Cinny.app/Contents/MacOS/cinny
+          codesign --verify --deep --strict --verbose=2 src-tauri/target/universal-apple-darwin/release/bundle/macos/Cinny.app
+      - name: macOS native launch smoke test
+        if: runner.os == 'macOS'
+        run: |
+          open src-tauri/target/universal-apple-darwin/release/bundle/macos/Cinny.app
+          sleep 20
+          pgrep -x cinny
+          screencapture -x platform-artifacts/macos-startup.png
+          pkill -x cinny
+      - name: Checksums
+        run: python3 -c 'import hashlib,pathlib; d=pathlib.Path("platform-artifacts"); (d/"SHA256SUMS").write_text("".join(hashlib.sha256(p.read_bytes()).hexdigest()+"  "+p.name+"\n" for p in sorted(d.iterdir()) if p.suffix in [".deb",".AppImage",".dmg",".zip"]))'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cinny-${{ inputs.release_tag }}-${{ matrix.platform }}
+          path: platform-artifacts/
+          if-no-files-found: error
