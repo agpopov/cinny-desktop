@@ -52,8 +52,8 @@ pub struct DesktopSettings {
 impl Default for DesktopSettings {
     fn default() -> Self {
         Self {
-            close_to_tray: true,
-            start_minimized: true,
+            close_to_tray: cfg!(any(target_os = "windows", target_os = "macos")),
+            start_minimized: cfg!(target_os = "windows"),
         }
     }
 }
@@ -151,7 +151,12 @@ fn toggle_main_window<R: Runtime>(app: &AppHandle<R>) {
 }
 
 /// Перехват закрытия окна: прячем в трей, если так настроено.
+pub fn is_tray_available<R: Runtime>(app: &AppHandle<R>) -> bool {
+    app.state::<DesktopState>().tray.lock().map(|tray| tray.is_some()).unwrap_or(false)
+}
+
 pub fn should_hide_on_close<R: Runtime>(app: &AppHandle<R>) -> bool {
+    if !is_tray_available(app) { return false; }
     app.state::<DesktopState>()
         .settings
         .lock()
@@ -495,17 +500,45 @@ fn show_native_notification(app: &AppHandle<Wry>, payload: NotifyPayload) -> Res
     toast.show().map_err(|e| e.to_string())
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 fn show_native_notification(app: &AppHandle<Wry>, payload: NotifyPayload) -> Result<(), String> {
-    use tauri_plugin_notification::NotificationExt;
-    let _ = payload.icon_key;
-    let _ = payload.icon;
-    app.notification()
-        .builder()
-        .title(&payload.title)
-        .body(&payload.body)
-        .show()
-        .map_err(|e| e.to_string())
+    use notify_rust::{Notification, NotificationResponse};
+    let mut notification = Notification::new();
+    notification.appname("Cinny").summary(&payload.title).body(&payload.body)
+        .action("default", "Открыть");
+    #[cfg(target_os = "linux")]
+    {
+        let body = payload.body.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;");
+        notification.body(&body)
+            .hint(notify_rust::Hint::SuppressSound(true))
+            .hint(notify_rust::Hint::DesktopEntry(app.config().identifier.clone()));
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let _ = notify_rust::set_application(&app.config().identifier);
+        if let Some(attribution) = &payload.attribution { notification.subtitle(attribution); }
+    }
+    if let Some(icon) = &payload.icon {
+        let key = payload.icon_key.as_deref().unwrap_or(icon);
+        if let Some(path) = cache_icon(app, key, icon) {
+            notification.image_path(&path.to_string_lossy());
+        }
+    }
+    let handle = notification.show().map_err(|e| e.to_string())?;
+    let app = app.clone();
+    std::thread::spawn(move || {
+        let result = handle.wait_for_response(|response: &NotificationResponse| {
+            let clicked = matches!(response, NotificationResponse::Default)
+                || matches!(response, NotificationResponse::Action(action) if action == "default");
+            if clicked {
+                let target = payload.target.clone();
+                let handle = app.clone();
+                let _ = app.run_on_main_thread(move || emit_notification_click(&handle, target));
+            }
+        });
+        if let Err(error) = result { eprintln!("Notification response failed: {error}"); }
+    });
+    Ok(())
 }
 
 /// Показать нативное уведомление о сообщении.
@@ -546,7 +579,11 @@ fn set_overlay(window: &WebviewWindow<Wry>, badge: Option<&str>) {
             .and_then(|bytes| Image::from_bytes(&bytes).ok().map(|i| i.to_owned()));
         let _ = window.set_overlay_icon(image);
     }
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "macos")]
+    {
+        let _ = window.set_badge_label(badge.map(|_| "●".to_string()));
+    }
+    #[cfg(target_os = "linux")]
     {
         let _ = (window, badge);
     }

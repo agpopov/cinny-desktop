@@ -10,6 +10,8 @@ fn main() {
             "desktop_get_settings",
             "desktop_set_settings",
             "desktop_show_window",
+            "native_notification_permission",
+            "mobile_take_notification_target",
         ])),
     )
     .expect("failed to run tauri-build");

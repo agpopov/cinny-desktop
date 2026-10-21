@@ -1,0 +1,92 @@
+name: Corp Android build and emulator checks
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Source commit to build
+        required: true
+        default: corp
+permissions:
+  contents: read
+jobs:
+  android:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ inputs.source_ref }}
+          submodules: recursive
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: android
+      - name: Install Android toolchain
+        run: |
+          sdkmanager 'ndk;27.2.12479018' 'platforms;android-35' 'build-tools;35.0.0'
+          echo "NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+      - name: Install and test web dependencies
+        run: |
+          npm ci
+          npm ci --prefix cinny
+          npm run test:unread --prefix cinny
+      - name: Generate pinned Tauri Android project
+        run: |
+          npm run tauri -- android init --ci --skip-targets-install
+          mkdir -p src-tauri/gen/android/app/src/main/java/in/cinny/app
+          cp src-tauri/android/CorpPlugin.kt src-tauri/gen/android/app/src/main/java/in/cinny/app/CorpPlugin.kt
+          mkdir -p android-artifacts
+          git rev-parse HEAD > android-artifacts/desktop-source.txt
+          git -C cinny rev-parse HEAD > android-artifacts/web-source.txt
+      - name: Build release APK and AAB
+        env:
+          NODE_OPTIONS: --max_old_space_size=4096
+        run: npm run tauri -- android build --apk --aab --target aarch64 armv7 x86_64 --ci
+      - name: Build installable emulator preview
+        env:
+          NODE_OPTIONS: --max_old_space_size=4096
+        run: npm run tauri -- android build --debug --apk --target x86_64 --ci
+      - name: Collect packages and generated native source
+        if: always()
+        run: |
+          find src-tauri/gen/android/app/build/outputs -type f \( -name '*.apk' -o -name '*.aab' \) -exec cp {} android-artifacts/ \; || true
+          tar -czf android-artifacts/generated-android-source.tar.gz --exclude=build --exclude=.gradle src-tauri/gen/android
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Native Android emulator smoke test
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: |
+            adb install -r android-artifacts/app-universal-debug.apk
+            adb shell am start -n in.cinny.app/.MainActivity
+            sleep 25
+            adb shell pidof in.cinny.app
+            adb shell uiautomator dump /sdcard/window.xml
+            adb pull /sdcard/window.xml android-artifacts/android-startup.xml
+            adb exec-out screencap -p > android-artifacts/android-startup.png
+            adb logcat -d > android-artifacts/android-logcat.txt
+            ! grep -E 'FATAL EXCEPTION.*in.cinny.app|Process: in.cinny.app.*PID' android-artifacts/android-logcat.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cinny-4.12.10-android-preview
+          path: android-artifacts/
+          if-no-files-found: error

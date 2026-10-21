@@ -1,11 +1,15 @@
 {
   "identifier": "corp-desktop",
-  "description": "Команды десктопной интеграции: уведомления, трей, автозапуск",
+  "description": "\u041a\u043e\u043c\u0430\u043d\u0434\u044b \u0434\u0435\u0441\u043a\u0442\u043e\u043f\u043d\u043e\u0439 \u0438\u043d\u0442\u0435\u0433\u0440\u0430\u0446\u0438\u0438: \u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u044f, \u0442\u0440\u0435\u0439, \u0430\u0432\u0442\u043e\u0437\u0430\u043f\u0443\u0441\u043a",
   "local": true,
   "remote": {
-    "urls": ["http://localhost:44548"]
+    "urls": [
+      "http://localhost:44548"
+    ]
   },
-  "windows": ["main"],
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "allow-desktop-notify",
     "allow-desktop-set-unread",
@@ -13,5 +17,10 @@
     "allow-desktop-get-settings",
     "allow-desktop-set-settings",
     "allow-desktop-show-window"
+  ],
+  "platforms": [
+    "macOS",
+    "windows",
+    "linux"
   ]
 }

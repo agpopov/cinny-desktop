@@ -535,6 +535,7 @@ name = "cinny"
 version = "4.12.10"
 dependencies = [
  "base64 0.22.1",
+ "notify-rust",
  "serde",
  "serde_json",
  "tauri",

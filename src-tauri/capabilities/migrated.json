@@ -85,7 +85,19 @@
     "clipboard-manager:default",
     {
       "identifier": "opener:allow-open-url",
-      "allow": [{ "url": "http://*" }, { "url": "https://*" }]
+      "allow": [
+        {
+          "url": "http://*"
+        },
+        {
+          "url": "https://*"
+        }
+      ]
     }
+  ],
+  "platforms": [
+    "macOS",
+    "windows",
+    "linux"
   ]
 }

@@ -1,0 +1,19 @@
+{
+  "identifier": "corp-mobile",
+  "description": "Mobile notifications and navigation",
+  "platforms": [
+    "android"
+  ],
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "allow-desktop-notify",
+    "allow-desktop-set-unread",
+    "allow-desktop-set-dnd",
+    "allow-desktop-show-window",
+    "allow-native-notification-permission",
+    "allow-mobile-take-notification-target"
+  ]
+}

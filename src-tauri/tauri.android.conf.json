@@ -1,0 +1,8 @@
+{
+  "app": {
+    "windows": [{ "label": "main", "title": "Cinny" }]
+  },
+  "bundle": {
+    "android": { "minSdkVersion": 26 }
+  }
+}
