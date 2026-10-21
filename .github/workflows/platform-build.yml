@@ -10,6 +10,11 @@ on:
         description: Existing release version
         required: true
         default: v4.12.11
+      platform:
+        description: Platforms to build
+        type: choice
+        options: [all, linux, macos]
+        default: all
 permissions:
   contents: read
 jobs:
@@ -17,14 +22,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - platform: linux-x86_64
-            os: ubuntu-22.04
-            target: x86_64-unknown-linux-gnu
-          - platform: macos-universal
-            os: macos-14
-            target: universal-apple-darwin
-    runs-on: ${{ matrix.os }}
+        platform: ${{ inputs.platform == 'macos' && fromJSON('["macos-universal"]') || inputs.platform == 'linux' && fromJSON('["linux-x86_64"]') || fromJSON('["linux-x86_64","macos-universal"]') }}
+    runs-on: ${{ matrix.platform == 'macos-universal' && 'macos-15' || 'ubuntu-22.04' }}
     steps:
       - name: Resolve source to immutable commit
         id: source
