@@ -24,6 +24,8 @@ jobs:
         uses: dtolnay/rust-toolchain@stable # branch-based releases
       - name: Install cinny dependencies
         run: cd cinny && npm ci
+      - name: Test unread receipt handling
+        run: cd cinny && npm run test:unread
       - name: Install tauri dependencies
         run: npm ci
       - name: Build desktop app with Tauri
