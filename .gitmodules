@@ -1,3 +1,4 @@
 [submodule "cinny"]
 	path = cinny
-	url = https://github.com/cinnyapp/cinny.git
+	url = https://github.com/agpopov/cinny.git
+	branch = corp

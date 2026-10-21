@@ -1,7 +1,7 @@
 {
-  "defaultHomeserver": 1,
-  "homeserverList": ["converser.eu", "matrix.org", "mozilla.org", "unredacted.org", "xmr.se"],
-  "allowCustomHomeservers": true,
+  "defaultHomeserver": 0,
+  "homeserverList": ["matrix.05.team"],
+  "allowCustomHomeservers": false,
 
   "featuredCommunities": {
     "openAsDefault": false,
