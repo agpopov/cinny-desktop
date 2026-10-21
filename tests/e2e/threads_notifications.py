@@ -237,15 +237,17 @@ with sync_playwright() as p:
     page.wait_for_timeout(2500)
     page.screenshot(path=SHOTS + "/05-thread-list.png")
     panel_text = page.locator("text=Треды").count()
-    items = page.locator("text=Корень C").count()
+    # треды в левом списке комнат — отдельная проверка, здесь только панель справа
+    NAV = ":not([aria-label='Активные треды'] *)"
+    items = page.locator(f"button:has-text('Корень C'){NAV}").count()
     check("список тредов показывает треды комнаты", items >= 1)
-    b_item = page.locator("button:has-text('Корень Боба')").first.inner_text().split("\n")
+    b_item = page.locator(f"button:has-text('Корень Боба'){NAV}").first.inner_text().split("\n")
     check("прочитанный тред Боба без счётчика", not any(x.strip().isdigit() for x in b_item), str(b_item))
     page.get_by_text("Мои", exact=True).click()
     page.wait_for_timeout(1000)
     page.screenshot(path=SHOTS + "/06-thread-list-mine.png")
-    mine_has_c = page.locator("button:has-text('Корень C')").count()
-    mine_has_a = page.locator("button:has-text('Корень Алисы')").count()
+    mine_has_c = page.locator(f"button:has-text('Корень C'){NAV}").count()
+    mine_has_a = page.locator(f"button:has-text('Корень Алисы'){NAV}").count()
     check("фильтр «Мои»: только треды Алисы", mine_has_a >= 1 and mine_has_c == 0,
           f"A={mine_has_a} C={mine_has_c}")
 
