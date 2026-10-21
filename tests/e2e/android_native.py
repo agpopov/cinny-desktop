@@ -66,6 +66,7 @@ def launch(target=None):
     adb(*args)
 
 if __name__ == "__main__":
+    adb('shell','pm','revoke',APP,'android.permission.POST_NOTIFICATIONS')
     launch(); page = connect()
     package=adb('shell','dumpsys','package',APP)
     assert 'versionName='+os.environ.get('EXPECTED_ANDROID_VERSION','4.12.10') in package
@@ -86,7 +87,6 @@ if __name__ == "__main__":
     assert page.evaluate('document.activeElement.getBoundingClientRect().bottom<=innerHeight')
     with open(OUT/'android-keyboard.png','wb') as f: subprocess.run(['adb','exec-out','screencap','-p'],stdout=f,check=True)
     adb('shell','input','keyevent','4');time.sleep(1)
-    adb('shell','pm','revoke',APP,'android.permission.POST_NOTIFICATIONS')
     assert invoke(page,'native_notification_permission',{'request':False}) in ('prompt','prompt-with-rationale','denied')
     adb('shell','pm','grant',APP,'android.permission.POST_NOTIFICATIONS')
     assert invoke(page,'native_notification_permission',{'request':False}) == 'granted'
