@@ -16,6 +16,18 @@ for (const [key,value] of [['versionCode', String(versionCode)], ['versionName',
   if (!source.match(pattern)) throw new Error(`Unsupported Android template: missing ${key}`);
   source = source.replace(pattern, `getProperty("tauri.android.${key}", "${value}")`);
 }
+if (!source.includes('CINNY_ANDROID_DEBUG_KEYSTORE')) {
+  source = source.replace('    buildTypes {', `    // CI uses a disposable, explicitly located preview key, never a production key.
+    System.getenv("CINNY_ANDROID_DEBUG_KEYSTORE")?.let { debugKey ->
+        signingConfigs.getByName("debug") {
+            storeFile = file(debugKey)
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+    buildTypes {`);
+}
 await writeFile(gradle, source);
 await writeFile(new URL('tauri.properties', app), `tauri.android.versionCode=${versionCode}\ntauri.android.versionName=${pkg.version}\n`);
 const java = new URL('src/main/java/in/cinny/app/', app);

@@ -48,6 +48,7 @@ jobs:
         with:
           workspaces: src-tauri
           key: android
+          cache-on-failure: true
       - name: Install Android toolchain
         run: |
           yes | sdkmanager --licenses >/dev/null || true
@@ -58,6 +59,11 @@ jobs:
           npm ci
           npm ci --prefix cinny
           npm run test:unread --prefix cinny
+      - name: Create disposable preview signing key
+        run: |
+          debug_key="$RUNNER_TEMP/cinny-android-preview.keystore"
+          keytool -genkeypair -keystore "$debug_key" -storepass android -keypass android -alias androiddebugkey -dname 'CN=Android Debug,O=Android,C=US' -keyalg RSA -keysize 2048 -validity 3650
+          echo "CINNY_ANDROID_DEBUG_KEYSTORE=$debug_key" >> "$GITHUB_ENV"
       - name: Generate pinned Tauri Android project
         run: |
           npm run tauri -- android init --ci --skip-targets-install
@@ -78,7 +84,7 @@ jobs:
           unsigned_apk=src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk
           tools="$ANDROID_HOME/build-tools/36.0.0"
           "$tools/zipalign" -P 16 -f 4 "$unsigned_apk" android-artifacts/Cinny_4.12.10_android-preview.apk
-          "$tools/apksigner" sign --ks "$HOME/.android/debug.keystore" --ks-key-alias androiddebugkey --ks-pass pass:android --key-pass pass:android android-artifacts/Cinny_4.12.10_android-preview.apk
+          "$tools/apksigner" sign --ks "$CINNY_ANDROID_DEBUG_KEYSTORE" --ks-key-alias androiddebugkey --ks-pass pass:android --key-pass pass:android android-artifacts/Cinny_4.12.10_android-preview.apk
           "$tools/apksigner" verify --verbose android-artifacts/Cinny_4.12.10_android-preview.apk
           "$tools/zipalign" -c -P 16 4 android-artifacts/Cinny_4.12.10_android-preview.apk
           "$tools/aapt" dump badging android-artifacts/Cinny_4.12.10_android-preview.apk > android-artifacts/android-package.txt
