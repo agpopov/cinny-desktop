@@ -7,7 +7,7 @@ import atexit
 from pathlib import Path
 
 
-OUT = Path('android-artifacts'); OUT.mkdir(exist_ok=True)
+OUT = Path('android-artifacts') / os.environ.get('ANDROID_TEST_VARIANT','native-debug'); OUT.mkdir(parents=True,exist_ok=True)
 APP = 'in.cinny.app'
 def adb(*args):
     return subprocess.check_output(['adb', *args], text=True).strip()
@@ -86,6 +86,7 @@ if __name__ == "__main__":
     assert page.evaluate('document.activeElement.getBoundingClientRect().bottom<=innerHeight')
     with open(OUT/'android-keyboard.png','wb') as f: subprocess.run(['adb','exec-out','screencap','-p'],stdout=f,check=True)
     adb('shell','input','keyevent','4');time.sleep(1)
+    adb('shell','pm','revoke',APP,'android.permission.POST_NOTIFICATIONS')
     assert invoke(page,'native_notification_permission',{'request':False}) in ('prompt','prompt-with-rationale','denied')
     adb('shell','pm','grant',APP,'android.permission.POST_NOTIFICATIONS')
     assert invoke(page,'native_notification_permission',{'request':False}) == 'granted'
@@ -93,6 +94,7 @@ if __name__ == "__main__":
     invoke(page,'desktop_notify',{'payload':{'title':'Cinny native check','body':'NATIVE_ANDROID_MESSAGE_41210','target':target}})
     state=adb('shell','dumpsys','notification','--noredact')
     assert 'NATIVE_ANDROID_MESSAGE_41210' in state
+    print('PASS Android native notification contains message body',flush=True)
     adb('shell','cmd','statusbar','expand-notifications');time.sleep(2)
     with open(OUT/'android-notification-shade.png','wb') as f:
         subprocess.run(['adb','exec-out','screencap','-p'],stdout=f,check=True)
