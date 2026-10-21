@@ -74,9 +74,9 @@ with webview_debug_policy(), (out / 'native-launch.log').open('w') as log:
             assert '4.12.11' in page.locator('body').inner_text()
             settings = page.evaluate("window.__TAURI_INTERNALS__.invoke('desktop_get_settings')")
             assert settings['platform'] == 'windows', settings
-            page.evaluate("window.__TAURI_INTERNALS__.invoke('desktop_set_unread', {payload:{total:2,hasUnread:true}})")
-            page.evaluate("window.__TAURI_INTERNALS__.invoke('desktop_set_unread', {payload:{total:0,hasUnread:false}})")
             page.screenshot(path=str(out / 'installed-startup.png'), full_page=True)
+            page.evaluate("window.__TAURI_INTERNALS__.invoke('desktop_set_unread', {payload:{total:2,highlight:true,badge:null,hasUnread:true}})")
+            page.evaluate("window.__TAURI_INTERNALS__.invoke('desktop_set_unread', {payload:{total:0,highlight:false,badge:null,hasUnread:false}})")
             (out / 'native-settings.json').write_text(json.dumps(settings, indent=2))
             assert not errors, errors
             print('PASS Windows NSIS installation, actual WebView2 startup, version, crypto APIs, viewport and native settings/unread IPC', flush=True)
