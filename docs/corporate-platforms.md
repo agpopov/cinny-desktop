@@ -58,7 +58,9 @@ check for existing upstream installations before migration.
 ## Validation and rollout gates
 
 Automated regression tests cover unread receipts, thread navigation, notification
-filtering and target navigation. `tests/e2e/platform_ui.py` covers Chromium,
+filtering and target navigation. `tests/e2e/encryption_smoke.py` exchanges
+encrypted messages between two devices, checks that the server receives no
+plaintext message events and verifies decrypted history after reload. `tests/e2e/platform_ui.py` covers Chromium,
 Firefox and WebKit at desktop, tablet and narrow mobile sizes, including reduced
 viewport height, message sending, permission denial/retry and cold-start target
 handling. These tests use disposable local Synapse accounts, never company users.
