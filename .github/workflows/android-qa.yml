@@ -1,0 +1,71 @@
+name: Corp Android packaged app validation
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: Completed Android build run to validate
+        required: true
+      expected_version:
+        default: '4.12.10'
+      expected_version_code:
+        default: '4012010'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  emulator:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/download-artifact@v4
+        with:
+          name: cinny-4.12.10-android-preview
+          path: android-artifacts
+          run-id: ${{ inputs.build_run_id }}
+          github-token: ${{ github.token }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install pinned Android command-line tools
+        run: |
+          sdk_root="$RUNNER_TEMP/cinny-android-sdk"
+          mkdir -p "$sdk_root/cmdline-tools"
+          curl -fL --retry 3 https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip -o "$RUNNER_TEMP/android-tools.zip"
+          echo "4e4c464f145a7512b57d088ac6c278c03c9eea610886b35a5e0804e74eedf583  $RUNNER_TEMP/android-tools.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/android-tools.zip" -d "$RUNNER_TEMP/android-tools"
+          mv "$RUNNER_TEMP/android-tools/cmdline-tools" "$sdk_root/cmdline-tools/latest"
+          echo "ANDROID_HOME=$sdk_root" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$sdk_root" >> "$GITHUB_ENV"
+          echo "$sdk_root/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+      - name: Install test client
+        run: python3 -m pip install websocket-client==1.9.0
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Validate installed Android packages
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          EXPECTED_ANDROID_VERSION: ${{ inputs.expected_version }}
+          EXPECTED_ANDROID_VERSION_CODE: ${{ inputs.expected_version_code }}
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: |
+            if test -f android-artifacts/Cinny_4.12.10_android-preview.apk; then adb install -r android-artifacts/Cinny_4.12.10_android-preview.apk; adb shell am start -n in.cinny.app/.MainActivity; sleep 25; adb shell uiautomator dump /sdcard/release-window.xml; adb pull /sdcard/release-window.xml android-artifacts/android-release-startup.xml; adb exec-out screencap -p > android-artifacts/android-release-startup.png; adb shell am force-stop in.cinny.app; fi
+            adb install -r android-artifacts/app-universal-debug.apk
+            adb shell am start -n in.cinny.app/.MainActivity
+            sleep 20
+            python3 tests/e2e/android_native.py
+      - name: Record test source
+        if: always()
+        run: git rev-parse HEAD > android-artifacts/test-source.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-qa-${{ inputs.build_run_id }}
+          path: android-artifacts/

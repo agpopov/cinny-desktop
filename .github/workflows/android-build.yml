@@ -90,7 +90,7 @@ jobs:
           find src-tauri/gen/android/app/build/outputs -type f \( -name '*.apk' -o -name '*.aab' \) -exec cp {} android-artifacts/ \; || true
           tar -czf android-artifacts/generated-android-source.tar.gz --exclude=build --exclude=.gradle src-tauri/gen/android
       - name: Install Android WebView test client
-        run: python3 -m pip install playwright==1.64.0
+        run: python3 -m pip install websocket-client==1.9.0
       - name: Enable emulator acceleration
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
