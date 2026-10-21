@@ -3,6 +3,10 @@ on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: Existing Windows run to validate without recompiling (empty means build)
+        default: ''
 
 permissions:
   contents: write
@@ -16,28 +20,44 @@ jobs:
         with:
           submodules: true
       - name: Setup node
+        if: inputs.build_run_id == ''
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: ".node-version"
           package-manager-cache: false
       - name: Install Rust stable
+        if: inputs.build_run_id == ''
         uses: dtolnay/rust-toolchain@stable # branch-based releases
       - name: Install cinny dependencies
+        if: inputs.build_run_id == ''
         run: cd cinny && npm ci
       - name: Test unread receipt handling
+        if: inputs.build_run_id == ''
         run: cd cinny && npm run test:unread && npm run test:mentions && npm run typecheck
       - name: Install tauri dependencies
+        if: inputs.build_run_id == ''
         run: npm ci
       - name: Build desktop app with Tauri
+        if: inputs.build_run_id == ''
         run: npm run tauri build
         env:
           NODE_OPTIONS: "--max_old_space_size=4096"
+      - name: Download an existing Windows build
+        if: inputs.build_run_id != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: cinny-desktop-windows
+          run-id: ${{ inputs.build_run_id }}
+          github-token: ${{ github.token }}
       - name: Install and validate the Windows package
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force windows-artifacts | Out-Null
-          git rev-parse HEAD | Set-Content windows-artifacts/desktop-source.txt
-          git -C cinny rev-parse HEAD | Set-Content windows-artifacts/web-source.txt
+          if ('${{ inputs.build_run_id }}' -eq '') {
+            git rev-parse HEAD | Set-Content windows-artifacts/desktop-source.txt
+            git -C cinny rev-parse HEAD | Set-Content windows-artifacts/web-source.txt
+          }
+          git rev-parse HEAD | Set-Content windows-artifacts/test-source.txt
           python -m pip install playwright==1.64.0
           $installer = Get-ChildItem src-tauri/target/release/bundle/nsis/*.exe | Select-Object -First 1
           $process = Start-Process -FilePath $installer.FullName -ArgumentList '/S' -PassThru -Wait
