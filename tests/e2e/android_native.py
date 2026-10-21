@@ -30,6 +30,8 @@ def launch(target=None):
 
 with sync_playwright() as p:
     launch(); browser,page = connect(p)
+    package=adb('shell','dumpsys','package',APP)
+    assert 'versionName=4.12.10' in package and 'versionCode=4012010' in package
     page.get_by_role('button',name='Login',exact=True).wait_for(timeout=30000)
     assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+1')
     page.screenshot(path=str(OUT/'android-login-webview.png'))

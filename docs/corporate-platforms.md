@@ -37,7 +37,10 @@ Dispatch `Corp macOS and Linux build` (`platform-build.yml`) or
 branch with an explicit source commit. The workflow resolves even a branch input
 to a full SHA before checkout and pins the web submodule. Android's generated
 native project is archived with the artifacts; the pinned Tauri CLI generates it
-and the versioned `src-tauri/android/CorpPlugin.kt` is copied into it.
+and `scripts/prepare-android.mjs` applies version 4.12.10 / code 4012010 and copies
+the versioned `src-tauri/android/CorpPlugin.kt` into it. The optimized preview
+APK uses the disposable debug key; unsigned release APK/AAB files are also kept.
+The emulator launches both the optimized preview and the debug test build.
 
 No production signing keys are generated automatically. Keep private keys and
 passwords in CI secrets or the organization's signing service, never in git.
