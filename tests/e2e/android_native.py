@@ -1,5 +1,6 @@
 """Exercise the installed debug APK through its real Android WebView and plugins."""
 import json, os, subprocess, time
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
@@ -42,8 +43,12 @@ with sync_playwright() as p:
     adb('shell','cmd','statusbar','expand-notifications');time.sleep(2)
     with open(OUT/'android-notification-shade.png','wb') as f:
         subprocess.run(['adb','exec-out','screencap','-p'],stdout=f,check=True)
-    adb('shell','cmd','statusbar','collapse')
-    launch(target);time.sleep(1)
+    adb('shell','uiautomator','dump','/sdcard/native-check.xml')
+    hierarchy=ET.fromstring(adb('shell','cat','/sdcard/native-check.xml'))
+    title=next(node for node in hierarchy.iter('node') if node.get('text')=='Cinny native check')
+    bounds=title.get('bounds').replace('][',',').strip('[]').split(',')
+    x1,y1,x2,y2=map(int,bounds)
+    adb('shell','input','tap',str((x1+x2)//2),str((y1+y2)//2));time.sleep(1)
     assert invoke(page,'mobile_take_notification_target') == target
     assert invoke(page,'mobile_take_notification_target') == {}
     invoke(page,'desktop_set_unread',{'payload':{'total':0,'hasUnread':False}})
