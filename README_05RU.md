@@ -73,31 +73,36 @@
 | Треды | `cinny/src/app/features/room/thread/`, `RoomTimeline.tsx`, `RoomInput.tsx`, `Room.tsx` |
 | Счётчики с учётом тредов | `cinny/src/app/utils/room.ts`, `state/room/roomToUnread.ts`, `utils/notifications.ts` |
 
-## Как завести форк в GitLab
+## Репозитории
 
-1. Создайте два репозитория: `cinny` (форк веб-клиента) и `cinny-desktop`.
-2. В `cinny` примените `cinny-05ru.patch` поверх тега `v4.12.7`:
-   `git checkout -b corp v4.12.7 && git am cinny-05ru.patch`.
-3. В `cinny-desktop` примените `cinny-desktop-05ru.patch` поверх `v4.12.7`.
-4. Направьте сабмодуль на свой форк:
-   ```
-   git config -f .gitmodules submodule.cinny.url https://gitlab.<ваш-домен>/<группа>/cinny.git
-   git submodule sync && cd cinny && git fetch && git checkout corp && cd .. && git add .gitmodules cinny
-   ```
-5. В `config.json` (корень `cinny-desktop`) пропишите свой homeserver, чтобы его не вводить при входе:
-   ```json
-   "defaultHomeserver": 0,
-   "homeserverList": ["matrix.<ваш-домен>"],
-   "allowCustomHomeservers": false
-   ```
+- [`agpopov/cinny`](https://github.com/agpopov/cinny) — веб-клиент, ветка `corp`.
+- [`agpopov/cinny-desktop`](https://github.com/agpopov/cinny-desktop) — обёртка Tauri, ветка `corp`.
+  Сабмодуль `cinny` закреплён на конкретном коммите форка `cinny`.
+- Homeserver `matrix.05.team` прописан в `config.json` (`allowCustomHomeservers: false`).
+- Апстрим: remote `upstream` в обоих репозиториях (`cinnyapp/cinny`, `cinnyapp/cinny-desktop`).
+
+### Доработка
+1. Правки веба: коммит в `cinny` (ветка `corp`), push.
+2. В `cinny-desktop`: `git add cinny && git commit` — фиксирует новую версию сабмодуля, push.
+   Без этого сборка возьмёт старый коммит веб-части.
+
+### Новая версия апстрима
+```
+cd cinny && git fetch upstream --tags && git merge vX.Y.Z   # затем push
+cd .. && git fetch upstream --tags && git merge vX.Y.Z      # конфликты в .github/workflows — оставлять наш corp-build.yml
+```
+После слияния прогоните линтер и `vite build`, затем выпускайте версию.
 
 ## Сборка
 
-**В CI.** `.gitlab-ci.yml` содержит два задания. `web:check` (Linux, Docker) запускает линтер
-и собирает веб-часть. `windows:build` собирает установщики и требует Windows-раннер с тегом
-`windows` и установленными Node.js 24, Rust `stable-x86_64-pc-windows-msvc` и Visual Studio
-Build Tools (C++). Артефакты: `src-tauri/target/release/bundle/msi/*.msi` и
-`src-tauri/target/release/bundle/nsis/*-setup.exe`.
+**В CI (GitHub Actions).** `.github/workflows/corp-build.yml` на `windows-latest` собирает `.msi` и
+`-setup.exe`. Запуск: вручную (Actions → Corp build → Run workflow) — артефакты в прогоне,
+или пуш тега `v*` — тогда файлы ещё и прикладываются к GitHub Release.
+
+**Выпуск:** `npm run bump X.Y.Z` (обновляет версию в `package.json`, `Cargo.toml`, `tauri.conf.json`),
+коммит, `git tag vX.Y.Z && git push --tags`. Версия должна быть числовой: MSI не принимает суффиксы.
+
+Для GitLab остался `.gitlab-ci.yml` с теми же заданиями (нужен Windows-раннер с тегом `windows`).
 
 **Локально на Windows:**
 ```
