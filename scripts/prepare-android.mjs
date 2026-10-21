@@ -20,5 +20,10 @@ await writeFile(gradle, source);
 await writeFile(new URL('tauri.properties', app), `tauri.android.versionCode=${versionCode}\ntauri.android.versionName=${pkg.version}\n`);
 const java = new URL('src/main/java/in/cinny/app/', app);
 await mkdir(java, { recursive: true });
-await copyFile(new URL('src-tauri/android/CorpPlugin.kt', root), new URL('CorpPlugin.kt', java));
+for (const name of ['CorpPlugin.kt', 'MainActivity.kt']) {
+  await copyFile(new URL('src-tauri/android/'+name, root), new URL(name, java));
+}
+const drawable = new URL('src/main/res/drawable/', app);
+await mkdir(drawable, { recursive: true });
+await copyFile(new URL('src-tauri/android/ic_stat_cinny.xml', root), new URL('ic_stat_cinny.xml', drawable));
 console.log(`Android ${pkg.version} (versionCode ${versionCode}) prepared`);

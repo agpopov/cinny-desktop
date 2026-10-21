@@ -62,7 +62,7 @@ atexit.register(collect_diagnostics)
 def launch(target=None):
     args = ['shell','am','start','-n',APP+'/.MainActivity']
     if target:
-        args += ['--es','LocalNotficationObject',"'"+json.dumps({'extra':{'target':target}},separators=(',',':'))+"'"]
+        args += ['--es','cinny.notification.target',"'"+json.dumps(target,separators=(',',':'))+"'"]
     adb(*args)
 
 if __name__ == "__main__":
@@ -74,6 +74,17 @@ if __name__ == "__main__":
     assert page.evaluate('!!crypto.subtle && !!indexedDB && !!WebAssembly')
     assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+1')
     with open(OUT/'android-login-webview.png','wb') as f: subprocess.run(['adb','exec-out','screencap','-p'],stdout=f,check=True)
+    # Verify that the native root resizes when the software keyboard appears.
+    height=page.evaluate('innerHeight')
+    adb('shell','uiautomator','dump','/sdcard/login-window.xml')
+    tree=ET.fromstring(adb('shell','cat','/sdcard/login-window.xml'))
+    field=next(node for node in tree.iter('node') if node.get('class')=='android.widget.EditText')
+    coords=list(map(int,field.get('bounds').replace('][',',').strip('[]').split(',')))
+    adb('shell','input','tap',str((coords[0]+coords[2])//2),str((coords[1]+coords[3])//2))
+    page.wait_for_function('innerHeight<'+str(height-100),timeout=10000)
+    assert page.evaluate('document.activeElement.getBoundingClientRect().bottom<=innerHeight')
+    with open(OUT/'android-keyboard.png','wb') as f: subprocess.run(['adb','exec-out','screencap','-p'],stdout=f,check=True)
+    adb('shell','input','keyevent','4');time.sleep(1)
     assert invoke(page,'native_notification_permission',{'request':False}) in ('prompt','prompt-with-rationale','denied')
     adb('shell','pm','grant',APP,'android.permission.POST_NOTIFICATIONS')
     assert invoke(page,'native_notification_permission',{'request':False}) == 'granted'
@@ -90,13 +101,13 @@ if __name__ == "__main__":
     bounds=title.get('bounds').replace('][',',').strip('[]').split(',')
     x1,y1,x2,y2=map(int,bounds)
     adb('shell','input','tap',str((x1+x2)//2),str((y1+y2)//2));time.sleep(1)
-    assert invoke(page,'mobile_take_notification_target') == target
+    assert (received := invoke(page,'mobile_take_notification_target')) == target, received
     assert invoke(page,'mobile_take_notification_target') == {}
     invoke(page,'desktop_set_unread',{'payload':{'total':0,'hasUnread':False}})
     # A cold launch must retain the destination until the authenticated UI is ready.
     page.close();adb('shell','am','force-stop',APP);launch(target)
     page=connect()
-    assert invoke(page,'mobile_take_notification_target') == target
+    assert (received := invoke(page,'mobile_take_notification_target')) == target, received
     assert invoke(page,'mobile_take_notification_target') == {}
     page.close()
 print('PASS Android native UI, permission, notification delivery, warm/cold target and consume-once checks')

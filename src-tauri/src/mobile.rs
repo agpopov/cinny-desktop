@@ -4,7 +4,7 @@ use tauri::plugin::{PermissionState, PluginHandle};
 use tauri::{AppHandle, Manager, Wry};
 
 struct MobileBridge(PluginHandle<Wry>);
-use tauri_plugin_notification::{Channel, Importance, NotificationExt, Visibility};
+use tauri_plugin_notification::NotificationExt;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -33,31 +33,21 @@ async fn desktop_notify(app: AppHandle<Wry>, payload: NotifyPayload) -> Result<(
     ) {
         return Err("Разрешите уведомления в настройках приложения".to_string());
     }
-    notifications
-        .create_channel(
-            Channel::builder("messages", "Сообщения")
-                .description("Новые сообщения Cinny")
-                .importance(Importance::High)
-                .visibility(Visibility::Private)
-                .build(),
-        )
-        .map_err(|e| e.to_string())?;
-    notifications
-        .builder()
-        .title(payload.title)
-        .body(payload.body)
-        .channel_id("messages")
-        .auto_cancel()
-        .silent()
-        .extra(
-            "target",
+    app.state::<MobileBridge>()
+        .0
+        .run_mobile_plugin::<serde_json::Value>(
+            "showMessage",
             serde_json::json!({
-                "roomId": payload.target.room_id,
-                "eventId": payload.target.event_id,
-                "threadId": payload.target.thread_id,
+                "title": payload.title,
+                "body": payload.body,
+                "target": {
+                    "roomId": payload.target.room_id,
+                    "eventId": payload.target.event_id,
+                    "threadId": payload.target.thread_id,
+                },
             }),
         )
-        .show()
+        .map(|_| ())
         .map_err(|e| e.to_string())
 }
 

@@ -23,7 +23,9 @@ controlled by the web client to avoid duplicate audio.
 Android asks for native notification permission. A denied permission is explained
 in settings; retryable permissions can be requested again. Notification intents
 are retained until the authenticated UI consumes them, including cold launch.
-Safe-area padding and a resizing viewport accommodate narrow screens and keyboards.
+Native system-bar and keyboard insets accommodate older WebViews, narrow
+screens and software keyboards. Notification targets use explicit immutable
+Android pending intents, independent of the upstream notification serializer.
 
 **Android notifications currently require a running app.** There is no Firebase,
 UnifiedPush or Matrix push gateway configured. Android can suspend or kill the
