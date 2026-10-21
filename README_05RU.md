@@ -99,7 +99,7 @@ cd .. && git fetch upstream --tags && git merge vX.Y.Z      # конфликты
 `-setup.exe`. Запуск: вручную (Actions → Corp build → Run workflow) — артефакты в прогоне,
 или пуш тега `v*` — тогда файлы ещё и прикладываются к GitHub Release.
 
-**Выпуск:** `npm run bump X.Y.Z` (обновляет версию в `package.json`, `Cargo.toml`, `tauri.conf.json`),
+**Выпуск:** `npm run bump -- X.Y.Z` (обновляет версию в `package.json`, `Cargo.toml`, `tauri.conf.json`),
 коммит, `git tag vX.Y.Z && git push --tags`. Версия должна быть числовой: MSI не принимает суффиксы.
 
 Для GitLab остался `.gitlab-ci.yml` с теми же заданиями (нужен Windows-раннер с тегом `windows`).
