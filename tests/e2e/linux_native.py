@@ -55,6 +55,43 @@ try:
         time.sleep(.2)
     assert clicked==target,clicked
     print('PASS native Linux packaged app: actual D-Bus notification, escaped text, silent flag, default action and exact room/thread/event target',flush=True)
+    if os.environ.get('MENTION_TEST_HS'):
+        from e2e_common import api
+        import uuid, base64
+        run=uuid.uuid4().hex[:8]
+        a,b=[api('POST','/_matrix/client/v3/register',body={'username':u+run,'password':'pass123','auth':{'type':'m.login.dummy'}}) for u in ['nativegroupa','nativegroupb']]
+        space=api('POST','/_matrix/client/v3/createRoom',a['access_token'],{'name':'Native groups '+run,'creation_content':{'type':'m.space'},'invite':[b['user_id']]})['room_id']
+        room=api('POST','/_matrix/client/v3/createRoom',a['access_token'],{'name':'Native group channel '+run,'invite':[b['user_id']]})['room_id']
+        for target_room in [space,room]:api('POST','/_matrix/client/v3/join/'+target_room,b['access_token'],{})
+        api('PUT',f'/_matrix/client/v3/rooms/{space}/state/m.space.child/{room}',a['access_token'],{'via':['localhost']})
+        api('PUT',f'/_matrix/client/v3/rooms/{space}/state/in.cinny.mention_group/qa',a['access_token'],{'name':'QA Team','color':'#5865f2','user_ids':[b['user_id']]})
+        js("const s=arguments[0];localStorage.setItem('cinny_access_token',s.access_token);localStorage.setItem('cinny_device_id',s.device_id);localStorage.setItem('cinny_user_id',s.user_id);localStorage.setItem('cinny_hs_base_url',s.hs);location.hash='/'+arguments[1]+'/'+arguments[2]+'/';location.reload();return true;",[{**a,'hs':os.environ['MENTION_TEST_HS']},space,room])
+        def until(script):
+            for _ in range(120):
+                try:
+                    if js(script):return
+                except RuntimeError:pass
+                time.sleep(.5)
+            raise AssertionError('Native WebView condition timed out: '+script)
+        until("return !!document.querySelector('[data-editable-name=RoomInput]')")
+        time.sleep(2)
+        js("const el=document.querySelector('[data-editable-name=RoomInput]');el.focus();document.execCommand('insertText',false,'NATIVE GROUP '+arguments[0]+' @QA Team');return true;",[run])
+        until("return Array.from(document.querySelectorAll('button')).some(b=>b.textContent.includes('@QA Team'))")
+        js("Array.from(document.querySelectorAll('button')).find(b=>b.textContent.includes('@QA Team')).click();return true;")
+        js("document.querySelector('[data-editable-name=RoomInput]').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',code:'Enter',bubbles:true,cancelable:true}));return true;")
+        event=None
+        for _ in range(80):
+            messages=api('GET',f'/_matrix/client/v3/rooms/{room}/messages?dir=b&limit=20',a['access_token'])['chunk']
+            event=next((e for e in messages if 'NATIVE GROUP '+run in e.get('content',{}).get('body','')),None)
+            if event:break
+            time.sleep(.25)
+        assert event,'Native group message not sent'
+        assert event['content']['m.mentions']=={'user_ids':[b['user_id']]},event['content']
+        until("return !!document.querySelector('[data-mention-group]')")
+        output=os.environ.get('NATIVE_TEST_OUTPUT','/tmp/cinny-groups-native-linux')
+        os.makedirs(output,exist_ok=True)
+        with open(output+'/group-mentions.png','wb') as screenshot:screenshot.write(base64.b64decode(req(path+'/screenshot')))
+        print('PASS native Linux WebKit: actual packaged frontend loads shared group, selects pill, sends standard recipient list and renders compact group',flush=True)
     req(path,method='DELETE')
 finally:
     for proc in reversed(procs):proc.terminate()

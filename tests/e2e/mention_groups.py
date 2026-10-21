@@ -32,17 +32,22 @@ api('POST',f'/_matrix/client/v3/join/{room}',b['access_token'],{})
 state(token,space,'m.space.child',room,{'via':['localhost']})
 groups=[('backend','Бэкенд (API)',ids),('qa','QA Team',[b['user_id']]),('empty','Пустая группа',[])]
 for key,name,users in groups: state(token,space,'in.cinny.mention_group',key,{'name':name,'color':'#5865f2','user_ids':users})
+long_name='L'*80+' (QA)'
+state(token,space,'in.cinny.mention_group','long',{'name':long_name,'color':'#5865f2','user_ids':[b['user_id']]})
 send(token,room,{'msgtype':'m.text','body':'GROUP TEST READY'})
 
 def open_page(browser,session,width=1400):
     context=browser.new_context(viewport={'width':width,'height':900 if width>600 else 844})
-    page=context.new_page(); errors=[];page.on('pageerror',lambda error:errors.append(str(error)))
+    page=context.new_page(); page.add_init_script('window.__editInputs=[];for(const type of ["beforeinput","input","compositionstart","compositionend"]){document.addEventListener(type,e=>window.__editInputs.push({type,inputType:e.inputType,data:e.data,cancelable:e.cancelable,selected:window.getSelection()?.toString()}),true)}'); errors=[];page.on('pageerror',lambda error:errors.append(str(error)))
     page.route('**/config.json',lambda route:route.fulfill(json={'homeserverList':[HS],'allowCustomHomeservers':True,'hashRouter':{'enabled':False,'basename':'/'}}))
     page.goto(APP+'/config.json')
     page.evaluate('(s)=>{localStorage.setItem("cinny_access_token",s.access_token);localStorage.setItem("cinny_device_id",s.device_id);localStorage.setItem("cinny_user_id",s.user_id);localStorage.setItem("cinny_hs_base_url",s.hs);}',{**session,'hs':HS})
     page.goto(APP+'/'+space+'/'+room+'/'); page.wait_for_timeout(6000); page.keyboard.press('Escape')
-    page.get_by_text('GROUP TEST READY',exact=True).wait_for(timeout=25000)
+    # Earlier fixtures may be virtualized out after preceding browser runs.
+    page.locator('[data-editable-name="RoomInput"]').wait_for(timeout=25000)
     page.wait_for_timeout(1200);page.keyboard.press('Escape')
+    latest=page.get_by_role('button',name='Jump to Latest',exact=True)
+    if latest.count(): latest.click();page.wait_for_timeout(700)
     return context,page,errors
 
 def select_group(page,editor,name,typed=None,keyboard=False):
@@ -73,6 +78,8 @@ with sync_playwright() as playwright:
         page.keyboard.insert_text(' extra ')
         page.keyboard.press('Enter')
         event=wait_event(token,room,lambda e:marker in e.get('content',{}).get('body',''))
+        latest=page.get_by_role('button',name='Jump to Latest',exact=True)
+        if latest.count(): latest.click();page.wait_for_timeout(700)
         content=event['content'];mentions=content.get('m.mentions',{})
         (OUT/(label+'-event.json')).write_text(json.dumps(content,ensure_ascii=False,indent=2))
         print('MENTIONS',mentions,flush=True)
@@ -85,12 +92,12 @@ with sync_playwright() as playwright:
         # Both forms of edits must avoid re-notifying existing recipients.
         row=page.locator('[data-message-id="'+event['event_id']+'"]')
         page.mouse.move(0,0);row.hover();row.get_by_role('button',name='Edit Message',exact=True).click()
-        edit=row.locator('[data-slate-editor="true"]');edit.focus();page.keyboard.press('Control+End');page.keyboard.insert_text(' исправлено '+label)
+        edit=row.locator('[data-slate-editor="true"]');page.wait_for_function('(el)=>el.textContent.includes("GROUP COMBO")',arg=edit.element_handle());edit.focus();page.keyboard.press('Control+End');page.keyboard.insert_text(' исправлено '+label)
         row.get_by_role('button',name='Save',exact=True).click()
         revised=wait_event(token,room,lambda e:e.get('content',{}).get('m.relates_to',{}).get('event_id')==event['event_id'] and 'исправлено '+label in e['content'].get('body',''))['content']
         check(label+' editing text does not re-ping',revised['m.mentions']=={} and revised['m.new_content']['m.mentions'].get('user_ids')==[b['user_id']])
         page.mouse.move(0,0);row.hover();row.get_by_role('button',name='Edit Message',exact=True).click()
-        edit=row.locator('[data-slate-editor="true"]');edit.focus();page.keyboard.press('Control+A');page.keyboard.insert_text('REMOVED ALL MENTIONS '+label)
+        edit=row.locator('[data-slate-editor="true"]');page.wait_for_function('(el)=>el.textContent.includes("GROUP COMBO")',arg=edit.element_handle());edit.focus();page.keyboard.press('Control+A');page.wait_for_timeout(100);page.keyboard.insert_text('REMOVED ALL MENTIONS '+label)
         row.get_by_role('button',name='Save',exact=True).click()
         removed=wait_event(token,room,lambda e:e.get('content',{}).get('m.relates_to',{}).get('event_id')==event['event_id'] and 'REMOVED ALL MENTIONS '+label in e['content'].get('body',''))['content']
         check(label+' removing mentions clears resolved and delta lists',removed['m.mentions']=={} and removed['m.new_content']['m.mentions']=={})
@@ -99,6 +106,20 @@ with sync_playwright() as playwright:
         editor.click();page.keyboard.insert_text(empty_marker+' ');select_group(page,editor,'Пустая группа');page.keyboard.press('Enter')
         empty=wait_event(token,room,lambda e:empty_marker in e.get('content',{}).get('body',''))['content']
         check(label+' empty group remains visible without notification',empty['m.mentions']=={} and '@Пустая группа' in empty['formatted_body'])
+        code_marker='CODE BLOCK '+label+' '+run
+        editor.focus();page.keyboard.insert_text(code_marker+' ');select_group(page,editor,'QA Team')
+        page.keyboard.press('Control+A');page.keyboard.press('Control+;');page.keyboard.press('Control+Enter')
+        coded=wait_event(token,room,lambda e:code_marker in e.get('content',{}).get('body',''))['content']
+        check(label+' converting group to a code block sends inert code',coded['m.mentions']=={} and '<pre>' in coded['formatted_body'] and 'data-cinny' not in coded['formatted_body'])
+        inline_marker='INLINE CODE '+label+' '+run
+        editor.focus();page.keyboard.insert_text(inline_marker+' ` ');select_group(page,editor,'QA Team');page.keyboard.insert_text('`');page.keyboard.press('Enter')
+        inline=wait_event(token,room,lambda e:inline_marker in e.get('content',{}).get('body',''))['content']
+        check(label+' backticks around group do not notify',inline['m.mentions']=={} and '<code' in inline['formatted_body'])
+        long_marker='LONG GROUP '+label+' '+run
+        editor.focus();page.keyboard.insert_text(long_marker+' ');select_group(page,editor,long_name);page.keyboard.press('Enter')
+        long_event=wait_event(token,room,lambda e:long_marker in e.get('content',{}).get('body',''))['content']
+        check(label+' long group name resolves normally',long_event['m.mentions']=={'user_ids':[b['user_id']]})
+        check(label+' long group does not overflow viewport',page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'))
         editor.click();page.keyboard.insert_text('LITERAL '+label+' @несуществующая группа');page.wait_for_timeout(500);page.keyboard.press('Enter')
         literal=wait_event(token,room,lambda e:'LITERAL '+label in e.get('content',{}).get('body',''))['content']
         check(label+' unmatched @ with spaces remains literal',literal['m.mentions']=={})
@@ -107,7 +128,7 @@ with sync_playwright() as playwright:
         state(token,space,'in.cinny.mention_group','qa',{});page.wait_for_timeout(500);page.keyboard.press('Enter')
         page.get_by_role('alert').filter(has_text='удалена').wait_for(timeout=10000)
         check(label+' deletion during compose retains draft','DELETED '+label in editor.inner_text())
-        editor.click();page.keyboard.press('Control+A');page.keyboard.press('Backspace')
+        editor.click();page.keyboard.press('Control+A');page.wait_for_timeout(100);page.keyboard.press('Backspace')
         state(token,space,'in.cinny.mention_group','qa',{'name':'QA Team','color':'#5865f2','user_ids':[b['user_id']]})
         check(label+' no errors after edge cases',not errors)
         if width==1400:
@@ -152,6 +173,7 @@ with sync_playwright() as playwright:
       except Exception:
         print('BODY',page.locator('body').inner_text()[-4500:],flush=True)
         print('ERRORS',errors,flush=True)
+        print('INPUT EVENTS',page.evaluate('window.__editInputs.slice(-15)'),flush=True)
         page.screenshot(path=str(OUT/(label+'-failure.png')))
         raise
       finally: context.close()
