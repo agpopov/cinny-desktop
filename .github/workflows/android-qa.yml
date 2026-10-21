@@ -8,6 +8,12 @@ on:
       candidate_release:
         description: Private draft release with locally built candidate APKs
         default: ''
+      preview_url:
+        description: Short-lived read-only GitHub release asset URL
+        default: ''
+      debug_url:
+        description: Short-lived read-only GitHub debug asset URL
+        default: ''
       expected_version:
         default: '4.12.10'
       expected_version_code:
@@ -35,6 +41,23 @@ jobs:
         run: |
           mkdir -p android-artifacts
           gh release download "$CANDIDATE_RELEASE" --repo "$GITHUB_REPOSITORY" --pattern '*.apk' --pattern '*-source.txt' --dir android-artifacts
+      - name: Download APKs through scoped read-only asset URLs
+        if: inputs.preview_url != '' && inputs.debug_url != ''
+        run: |
+          python3 - <<'PYTHON'
+          import json, os, pathlib, urllib.parse, urllib.request, shutil
+          inputs=json.load(open(os.environ['GITHUB_EVENT_PATH']))['inputs']
+          out=pathlib.Path('android-artifacts'); out.mkdir(exist_ok=True)
+          for key,name in [('preview_url','Cinny_4.12.10_android-preview.apk'),('debug_url','app-universal-debug.apk')]:
+              url=inputs[key]
+              parsed=urllib.parse.urlsplit(url)
+              if parsed.scheme!='https' or parsed.hostname!='release-assets.githubusercontent.com':
+                  raise RuntimeError('Only read-only GitHub release asset URLs are accepted')
+              print('::add-mask::'+url, flush=True)
+              with urllib.request.urlopen(url,timeout=180) as response, open(out/name,'wb') as dest:
+                  shutil.copyfileobj(response,dest)
+              print('Downloaded '+name, flush=True)
+          PYTHON
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
