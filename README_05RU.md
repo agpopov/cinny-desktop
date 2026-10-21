@@ -87,11 +87,20 @@
    Без этого сборка возьмёт старый коммит веб-части.
 
 ### Новая версия апстрима
+Раз в неделю workflow `upstream-check.yml` сравнивает теги `cinnyapp/cinny` и `cinnyapp/cinny-desktop`
+с нашими ветками и, если вышла новая версия, заводит issue с меткой `upstream`.
+
+Накатить обновление:
 ```
-cd cinny && git fetch upstream --tags && git merge vX.Y.Z   # затем push
-cd .. && git fetch upstream --tags && git merge vX.Y.Z      # конфликты в .github/workflows — оставлять наш corp-build.yml
+scripts/sync-upstream.sh            # сливает последние релизные теги в corp обоих репозиториев
+scripts/sync-upstream.sh --push     # то же + push обоих репозиториев
+scripts/sync-upstream.sh v4.13.0 v4.13.0   # конкретные теги cinny и cinny-desktop
 ```
-После слияния прогоните линтер и `vite build`, затем выпускайте версию.
+Скрипт сливает теги `vX.Y.Z`, а не `dev`, обновляет ссылку на сабмодуль, проверяет линтером изменённые
+нами файлы и собирает веб-часть. Устаревшие апстримовские workflow, которые мы удалили, при слиянии
+остаются удалёнными. Конфликты в наших файлах (`RoomTimeline.tsx`, `RoomInput.tsx`, `desktop.rs` и т. д.)
+скрипт не разрешает: он останавливается, правьте вручную, `git commit`, повторите запуск.
+После слияния соберите проверочный `.exe` (Actions → Corp build → Run workflow), затем выпускайте версию.
 
 ## Сборка
 

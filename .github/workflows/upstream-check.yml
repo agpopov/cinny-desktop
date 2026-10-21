@@ -1,0 +1,37 @@
+name: "Upstream release check"
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true
+          fetch-depth: 0
+      - name: Compare with upstream releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git remote add upstream https://github.com/cinnyapp/cinny-desktop.git
+          git -C cinny remote add upstream https://github.com/cinnyapp/cinny.git
+          git fetch -q upstream --tags
+          git -C cinny fetch -q upstream --tags
+          new=""
+          for repo in . cinny; do
+            tag=$(git -C "$repo" tag -l 'v[0-9]*' --sort=-v:refname | head -1)
+            git -C "$repo" merge-base --is-ancestor "$tag" HEAD 2>/dev/null || new="$new $repo:$tag"
+          done
+          if [ -n "$new" ] && [ -z "$(gh issue list --state open --label upstream --json number --jq '.[0].number')" ]; then
+            gh label create upstream --color 0e8a16 2>/dev/null || true
+            gh issue create --label upstream --title "Вышла новая версия апстрима:$new" \
+              --body "Запустите \`scripts/sync-upstream.sh\` (см. README_05RU.md → «Новая версия апстрима»)."
+          fi
