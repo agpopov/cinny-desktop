@@ -12,7 +12,7 @@ version is still 4.12.10. Do not replace tags to make platform history match.
 | Windows | Existing MSI / EXE | Existing v4.12.10 release |
 | Linux x86_64 | DEB / AppImage | Pilot builds; native launch checks |
 | macOS Intel + Apple Silicon | Universal DMG / app ZIP | Ad-hoc signature; company Developer ID and notarization required before broad deployment |
-| Android 8+ | Release unsigned APK / AAB; debug APK | Preview; permanent signing identity and background push required before broad deployment |
+| Android 8+, ARM64 / x86_64 | Optimized preview APK; unsigned release APK / AAB | Preview; permanent signing identity and background push required before broad deployment |
 
 Linux close-to-tray defaults to disabled because GNOME installations may have
 no tray extension. A missing tray cannot make the application invisible.
@@ -42,7 +42,9 @@ native project is archived with the artifacts; the pinned Tauri CLI generates it
 and `scripts/prepare-android.mjs` applies version 4.12.10 / code 4012010 and copies
 the versioned `src-tauri/android/CorpPlugin.kt` into it. The optimized preview
 APK uses the disposable debug key; unsigned release APK/AAB files are also kept.
-The emulator launches both the optimized preview and the debug test build.
+The emulator exercises both the optimized preview and the debug test build.
+The current validated pilot packages include ARM64 and x86_64; the full build
+workflow also targets ARMv7, which is not part of these pilot packages.
 
 No production signing keys are generated automatically. Keep private keys and
 passwords in CI secrets or the organization's signing service, never in git.
@@ -76,6 +78,9 @@ intent handling and consume-once behavior in an emulator. It does not emulate
 server push delivery or prove OEM battery-management behavior.
 
 Before broad rollout:
+
+Android previews currently include native WebView developer tooling for validation;
+disable it in the production configuration when signing the production build.
 
 1. Configure Developer ID signing and notarization for Mac; test a clean Mac with
    quarantine enabled, notification permission, Dock reopen and OS updates.

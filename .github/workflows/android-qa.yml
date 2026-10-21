@@ -5,9 +5,6 @@ on:
       build_run_id:
         description: Completed Android build run to validate
         default: ''
-      candidate_release:
-        description: Private draft release with locally built candidate APKs
-        default: ''
       preview_url:
         description: Short-lived read-only GitHub release asset URL
         default: ''
@@ -33,14 +30,6 @@ jobs:
           path: android-artifacts
           run-id: ${{ inputs.build_run_id }}
           github-token: ${{ github.token }}
-      - name: Download draft candidate packages
-        if: inputs.candidate_release != ''
-        env:
-          GH_TOKEN: ${{ github.token }}
-          CANDIDATE_RELEASE: ${{ inputs.candidate_release }}
-        run: |
-          mkdir -p android-artifacts
-          gh release download "$CANDIDATE_RELEASE" --repo "$GITHUB_REPOSITORY" --pattern '*.apk' --pattern '*-source.txt' --dir android-artifacts
       - name: Download APKs through scoped read-only asset URLs
         if: inputs.preview_url != '' && inputs.debug_url != ''
         run: |

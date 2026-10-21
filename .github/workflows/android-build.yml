@@ -116,8 +116,8 @@ jobs:
             adb shell pidof in.cinny.app
             adb shell uiautomator dump /sdcard/release-window.xml
             adb pull /sdcard/release-window.xml android-artifacts/android-release-startup.xml
-            grep 'Login' android-artifacts/android-release-startup.xml
             adb exec-out screencap -p > android-artifacts/android-release-startup.png
+            ANDROID_TEST_VARIANT=native-release python3 tests/e2e/android_native.py
             adb shell am force-stop in.cinny.app
             adb install -r android-artifacts/app-universal-debug.apk
             adb shell am start -n in.cinny.app/.MainActivity
