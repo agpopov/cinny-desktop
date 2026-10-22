@@ -17,8 +17,8 @@ def treply(root,b):
     c=text(b); c["m.relates_to"]={"rel_type":"m.thread","event_id":root,"is_falling_back":True,"m.in_reply_to":{"event_id":root}}; return c
 def open_ui(p, sess):
     ctx=p.chromium.launch(args=["--no-proxy-server"]).new_context(viewport={"width":1400,"height":900})
-    page=ctx.new_page(); errs=[]; page.on("pageerror",lambda e:errs.append(str(e)))
+    page=ctx.new_page(); page.route('**/config.json',lambda route:route.fulfill(json={'homeserverList':[HS],'allowCustomHomeservers':True,'hashRouter':{'enabled':False,'basename':'/'}})); errs=[]; page.on("pageerror",lambda e:errs.append(str(e)))
     page.goto(APP+"/config.json")
-    page.evaluate("""(s)=>{localStorage.setItem('cinny_access_token',s.access_token);localStorage.setItem('cinny_device_id',s.device_id);localStorage.setItem('cinny_user_id',s.user_id);localStorage.setItem('cinny_hs_base_url','http://localhost:8008');}""",sess)
+    page.evaluate("""(s)=>{localStorage.setItem('cinny_access_token',s.access_token);localStorage.setItem('cinny_device_id',s.device_id);localStorage.setItem('cinny_user_id',s.user_id);localStorage.setItem('cinny_hs_base_url','http://127.0.0.1:8008');}""",sess)
     page.goto(APP+"/"); page.wait_for_timeout(5000); page.keyboard.press("Escape")
     return page, errs

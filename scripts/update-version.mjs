@@ -47,25 +47,16 @@ fs.writeFileSync(
 );
 console.log(`Updated ${tauriConfigPath} -> ${version}`);
 
-// 5. Update Cinny web submodule to latest tag
-console.log("Updating cinny web submodule");
-
+// 5. Pin the corporate web client, or an explicitly supplied release commit.
+// Choosing the newest tag by commit date could silently package older code.
+const webRef = process.argv[3] || "origin/corp";
 execSync("git submodule update --init --recursive", { stdio: "inherit" });
-
-execSync("git fetch --tags", { cwd: "cinny", stdio: "inherit" });
-
-const latestCommit = execSync("git rev-list --tags --max-count=1", {
-  cwd: "cinny",
-}).toString().trim();
-
-const latestTag = execSync(`git describe --tags ${latestCommit}`, {
-  cwd: "cinny",
-}).toString().trim();
-
-console.log(`Latest cinny tag: ${latestTag}`);
-
-execSync(`git checkout ${latestTag}`, { cwd: "cinny", stdio: "inherit" });
-
+execSync("git fetch origin corp --tags", { cwd: "cinny", stdio: "inherit" });
+const { execFileSync } = await import("child_process");
+const webCommit = execFileSync("git", ["rev-parse", "--verify", `${webRef}^{commit}`], {
+  cwd: "cinny", encoding: "utf8",
+}).trim();
+execFileSync("git", ["checkout", "--detach", webCommit], { cwd: "cinny", stdio: "inherit" });
 execSync("git add cinny", { stdio: "inherit" });
-
+console.log(`Pinned cinny web: ${webCommit}`);
 console.log("Release preparation complete");

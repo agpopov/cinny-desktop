@@ -13,7 +13,7 @@ on:
         default: false
       release_tag:
         description: Existing draft prerelease to populate
-        default: v4.12.11
+        default: v4.12.12
 
 permissions:
   contents: write
@@ -42,7 +42,7 @@ jobs:
         run: cd cinny && npm ci
       - name: Test unread receipt handling
         if: inputs.build_run_id == ''
-        run: cd cinny && npm run test:unread && npm run test:mentions && npm run typecheck
+        run: cd cinny && npm run test:unread:source && npm run test:mentions && npm run test:media && npm run test:stickers && npm run test:key-export && npm run typecheck
       - name: Install tauri dependencies
         if: inputs.build_run_id == ''
         run: npm ci

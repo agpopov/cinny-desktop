@@ -84,7 +84,7 @@ with sync_playwright() as p:
     check("первым идёт самый свежий тред", "КОРЕНЬ-Г" in items.first.inner_text(), items.first.inner_text())
     nav.get_by_role("button",name=re.compile("Показать ещё 1")).click(); page.wait_for_timeout(500)
     check("кнопка раскрывает остальные", items.count()==4, items.count())
-    page.get_by_role("button",name="Свернуть треды").click(); page.wait_for_timeout(500)
+    page.locator("a:has-text('Фичи')").first.hover(); page.get_by_role("button",name="Свернуть треды").click(); page.wait_for_timeout(500)
     check("список сворачивается целиком", nav.count()==0 and page.get_by_role("button",name="Показать треды").count()==1)
     page.screenshot(path=SHOTS+"/f7-collapsed.png")
     page.reload(); page.wait_for_timeout(5000)
