@@ -52,7 +52,7 @@
   },
   "productName": "Cinny",
   "mainBinaryName": "cinny",
-  "version": "4.12.13",
+  "version": "4.12.14",
   "identifier": "in.cinny.app",
   "plugins": {
     "updater": {
@@ -64,7 +64,7 @@
   },
   "app": {
     "security": {
-      "csp": "default-src 'self' blob: data: filesystem: ws: wss: http: https: tauri:; script-src 'self' 'unsafe-eval' 'unsafe-inline' blob: data: filesystem: ws: wss: http: https: tauri:; style-src 'self' 'unsafe-inline' blob: data: filesystem: http: https:; img-src 'self' data: blob: filesystem: http: https:; connect-src 'self' blob: ipc: ws: wss: http: https: http://ipc.localhost"
+      "csp": "default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-dT6noyex1I8o5CS9Sx/y8UOqwpZYIridpGz92gcObIM=' 'sha256-pQY0fuQAnnVQH5nQfjo80rzGkQzeN3JeAtAJ+1KcD4k=' 'sha256-3042zLa3JXvrJe/2n8P/XpIKwqBdNTu7fwbLZUNrzZQ=' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/ https://www.recaptcha.net/recaptcha/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' blob: data: https: http:; media-src 'self' blob: data: https: http:; connect-src 'self' https: wss: http: ws: blob: ipc: http://ipc.localhost; worker-src 'self' blob:; frame-src 'self' https://gifs.ru https://www.google.com/recaptcha/ https://www.recaptcha.net/recaptcha/; manifest-src 'self'"
     }
   }
 }

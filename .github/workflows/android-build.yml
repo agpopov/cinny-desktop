@@ -57,12 +57,15 @@ jobs:
       - name: Install and test web dependencies
         run: |
           npm ci
+          node tests/android-prepare.test.mjs
           npm ci --prefix cinny
           npm run test:unread:source --prefix cinny
           npm run test:mentions --prefix cinny
           npm run test:media --prefix cinny
           npm run test:stickers --prefix cinny
           npm run test:key-export --prefix cinny
+          npm run test:p1 --prefix cinny
+          npm run test:p2 --prefix cinny
           npm run typecheck --prefix cinny
       - name: Create disposable preview signing key
         run: |
@@ -98,8 +101,8 @@ jobs:
           umask 077
           printf '%s' "$CINNY_ANDROID_KEYSTORE_BASE64" | base64 --decode > "$release_key"
           tools="$ANDROID_HOME/build-tools/36.0.0"
-          apk=android-artifacts/Cinny_4.12.13_android.apk
-          aab=android-artifacts/Cinny_4.12.13_android-release.aab
+          apk=android-artifacts/Cinny_4.12.14_android.apk
+          aab=android-artifacts/Cinny_4.12.14_android-release.aab
           "$tools/zipalign" -P 16 -f 4 src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk "$apk"
           "$tools/apksigner" sign --ks "$release_key" --ks-key-alias "$CINNY_ANDROID_KEY_ALIAS" --ks-pass env:CINNY_ANDROID_STORE_PASSWORD --key-pass env:CINNY_ANDROID_KEY_PASSWORD "$apk"
           "$tools/apksigner" verify --verbose --print-certs "$apk" | tee android-artifacts/android-signature.txt
@@ -116,7 +119,11 @@ jobs:
           grep 'jar verified' android-artifacts/android-bundle-signature.txt
           "$tools/aapt" dump badging "$apk" > android-artifacts/android-package.txt
           head -n 8 android-artifacts/android-package.txt
-          grep "versionCode='4012013' versionName='4.12.13'" android-artifacts/android-package.txt
+          "$tools/aapt" dump permissions "$apk" > android-artifacts/android-permissions.txt
+          grep 'android.permission.CAMERA' android-artifacts/android-permissions.txt
+          grep 'android.permission.RECORD_AUDIO' android-artifacts/android-permissions.txt
+          grep 'android.permission.MODIFY_AUDIO_SETTINGS' android-artifacts/android-permissions.txt
+          grep "versionCode='4012014' versionName='4.12.14'" android-artifacts/android-package.txt
       - name: Collect packages and generated native source
         if: always()
         run: |
@@ -137,7 +144,7 @@ jobs:
           profile: pixel_6
           disable-animations: true
           script: |
-            adb install -r android-artifacts/Cinny_4.12.13_android.apk
+            adb install -r android-artifacts/Cinny_4.12.14_android.apk
             adb shell am start -n in.cinny.app/.MainActivity
             sleep 25
             adb shell pidof in.cinny.app
@@ -163,6 +170,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: cinny-4.12.13-android-release
+          name: cinny-4.12.14-android-release
           path: android-artifacts/
           if-no-files-found: error

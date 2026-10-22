@@ -9,6 +9,24 @@ if (minor > 999 || patch > 999) throw new Error('Android version component excee
 const versionCode = major * 1000000 + minor * 1000 + patch;
 if (versionCode < 1 || versionCode > 2100000000) throw new Error('Android version code outside valid range');
 const app = new URL('src-tauri/gen/android/app/', root);
+// Wry requests these at runtime, but Android refuses undeclared permissions.
+// Keep camera/microphone optional so chat remains installable without hardware.
+const manifest = new URL('src/main/AndroidManifest.xml', app);
+let xml = await readFile(manifest, 'utf8');
+if (!xml.includes('<application')) throw new Error('Unsupported Android manifest: missing application');
+for (const permission of ['CAMERA', 'RECORD_AUDIO', 'MODIFY_AUDIO_SETTINGS']) {
+  const name = `android.permission.${permission}`;
+  if (!xml.includes(`android:name="${name}"`)) {
+    xml = xml.replace('<application', `<uses-permission android:name="${name}" />\n    <application`);
+  }
+}
+for (const feature of ['camera', 'camera.autofocus', 'microphone']) {
+  const name = `android.hardware.${feature}`;
+  if (!xml.includes(`android:name="${name}"`)) {
+    xml = xml.replace('<application', `<uses-feature android:name="${name}" android:required="false" />\n    <application`);
+  }
+}
+await writeFile(manifest, xml);
 const gradle = new URL('build.gradle.kts', app);
 let source = await readFile(gradle, 'utf8');
 for (const [key,value] of [['versionCode', String(versionCode)], ['versionName', pkg.version]]) {

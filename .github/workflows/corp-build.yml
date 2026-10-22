@@ -13,7 +13,7 @@ on:
         default: false
       release_tag:
         description: Existing draft prerelease to populate
-        default: v4.12.13
+        default: v4.12.14
 
 permissions:
   contents: write
@@ -42,7 +42,7 @@ jobs:
         run: cd cinny && npm ci
       - name: Test unread receipt handling
         if: inputs.build_run_id == ''
-        run: cd cinny && npm run test:unread:source && npm run test:mentions && npm run test:media && npm run test:stickers && npm run test:key-export && npm run typecheck
+        run: cd cinny && npm run test:unread:source && npm run test:mentions && npm run test:media && npm run test:stickers && npm run test:key-export && npm run test:p1 && npm run test:p2 && npm run typecheck
       - name: Install tauri dependencies
         if: inputs.build_run_id == ''
         run: npm ci
@@ -91,6 +91,8 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
+          draft: true
+          prerelease: true
           files: |
             src-tauri/target/release/bundle/msi/*.msi
             src-tauri/target/release/bundle/nsis/*.exe

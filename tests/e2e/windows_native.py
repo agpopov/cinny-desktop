@@ -68,10 +68,10 @@ with webview_debug_policy(), (out / 'native-launch.log').open('w') as log:
             assert pages, 'Installed app has no WebView page'
             page = next((page for page in pages if not page.url.startswith('devtools:')), pages[0])
             page.on('pageerror', lambda error: errors.append(str(error)))
-            page.get_by_role('button', name='Login', exact=True).wait_for(timeout=60000)
+            page.get_by_role('button', name='Войти', exact=True).wait_for(timeout=60000)
             assert page.evaluate('!!crypto.subtle && !!indexedDB && !!WebAssembly')
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1')
-            assert '4.12.13' in page.locator('body').inner_text()
+            assert '4.12.14' in page.locator('body').inner_text()
             settings = page.evaluate("window.__TAURI_INTERNALS__.invoke('desktop_get_settings')")
             assert settings['platform'] == 'windows', settings
             page.screenshot(path=str(out / 'installed-startup.png'), full_page=True)

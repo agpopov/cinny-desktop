@@ -14,6 +14,23 @@
     "allow-desktop-set-dnd",
     "allow-desktop-show-window",
     "allow-native-notification-permission",
-    "allow-mobile-take-notification-target"
+    "allow-mobile-take-notification-target",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        {
+          "url": "http://*"
+        },
+        {
+          "url": "https://*"
+        },
+        {
+          "url": "mailto:*"
+        },
+        {
+          "url": "tel:*"
+        }
+      ]
+    }
   ]
 }
