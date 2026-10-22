@@ -13,6 +13,23 @@ OUT = Path('android-artifacts') / os.environ.get('ANDROID_TEST_VARIANT','native-
 APP = 'in.cinny.app'
 def adb(*args):
     return subprocess.check_output(['adb', *args], text=True).strip()
+def dump_ui(path):
+    try: initial_pid=adb('shell','pidof',APP)
+    except subprocess.CalledProcessError: initial_pid=None
+    for attempt in range(3):
+        try: return adb('shell','uiautomator','dump',path)
+        except subprocess.CalledProcessError as error:
+            # The emulator can kill UIAutomator itself. Never retry a failed
+            # app process, a changed PID, an app ANR or another command error.
+            if error.returncode!=137 or attempt==2 or not initial_pid: raise
+            if adb('shell','pidof',APP)!=initial_pid:
+                raise RuntimeError('Cinny restarted while UIAutomator was killed') from error
+            log=OUT/'uiautomator-retries.json'
+            retries=json.loads(log.read_text()) if log.exists() else []
+            retries.append({'path':path,'exit_code':137,'unchanged_app_pid':initial_pid,'attempt':attempt+1})
+            log.write_text(json.dumps(retries,indent=2))
+            print('UIAutomator exited 137; app PID unchanged; retry '+str(attempt+1),flush=True)
+            time.sleep(1)
 class WebView:
     def __init__(self, socket): self.socket=socket; self.counter=0; self.player_requests=[]
     def request(self, method, params):
@@ -62,7 +79,7 @@ def connect():
     raise RuntimeError('Android WebView unavailable: '+repr(last))
 def webview_bounds():
     for attempt in range(6):
-        adb('shell','uiautomator','dump','/sdcard/login-window.xml')
+        dump_ui('/sdcard/login-window.xml')
         tree=ET.fromstring(adb('shell','cat','/sdcard/login-window.xml'))
         view=next((node for node in tree.iter('node') if node.get('class')=='android.webkit.WebView'),None)
         if view is not None:
@@ -84,7 +101,7 @@ def collect_diagnostics():
     try:
         (OUT/'android-logcat.txt').write_text(adb('logcat','-d'))
         (OUT/'android-sockets.txt').write_text(adb('shell','cat','/proc/net/unix'))
-        adb('shell','uiautomator','dump','/sdcard/window.xml')
+        dump_ui('/sdcard/window.xml')
         adb('pull','/sdcard/window.xml',str(OUT/'android-startup.xml'))
         with open(OUT/'android-startup.png','wb') as f: subprocess.run(['adb','exec-out','screencap','-p'],stdout=f,check=True)
     except Exception as error: print('Diagnostics: '+str(error),flush=True)
@@ -133,7 +150,7 @@ if __name__ == "__main__":
     adb('shell','cmd','statusbar','expand-notifications');time.sleep(2)
     with open(OUT/'android-notification-shade.png','wb') as f:
         subprocess.run(['adb','exec-out','screencap','-p'],stdout=f,check=True)
-    adb('shell','uiautomator','dump','/sdcard/native-check.xml')
+    dump_ui('/sdcard/native-check.xml')
     hierarchy=ET.fromstring(adb('shell','cat','/sdcard/native-check.xml'))
     title=next(node for node in hierarchy.iter('node') if node.get('text')=='Cinny native check')
     bounds=title.get('bounds').replace('][',',').strip('[]').split(',')
