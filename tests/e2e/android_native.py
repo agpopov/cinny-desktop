@@ -116,8 +116,8 @@ if __name__ == "__main__":
     adb('shell','pm','revoke',APP,'android.permission.POST_NOTIFICATIONS')
     launch(); page = connect()
     package=adb('shell','dumpsys','package',APP)
-    assert 'versionName='+os.environ.get('EXPECTED_ANDROID_VERSION','4.12.17') in package
-    assert 'versionCode='+os.environ.get('EXPECTED_ANDROID_VERSION_CODE','4012017') in package
+    assert 'versionName='+os.environ.get('EXPECTED_ANDROID_VERSION','4.12.18') in package
+    assert 'versionCode='+os.environ.get('EXPECTED_ANDROID_VERSION_CODE','4012018') in package
     page.wait_for_function("Array.from(document.querySelectorAll('button')).some(b=>b.textContent.trim()==='Войти')")
     assert page.evaluate('!!crypto.subtle && !!indexedDB && !!WebAssembly')
     assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+1')
