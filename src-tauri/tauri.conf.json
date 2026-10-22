@@ -52,7 +52,7 @@
   },
   "productName": "Cinny",
   "mainBinaryName": "cinny",
-  "version": "4.12.16",
+  "version": "4.12.17",
   "identifier": "in.cinny.app",
   "plugins": {
     "updater": {
@@ -64,7 +64,7 @@
   },
   "app": {
     "security": {
-      "csp": "default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-dT6noyex1I8o5CS9Sx/y8UOqwpZYIridpGz92gcObIM=' 'sha256-pQY0fuQAnnVQH5nQfjo80rzGkQzeN3JeAtAJ+1KcD4k=' 'sha256-3042zLa3JXvrJe/2n8P/XpIKwqBdNTu7fwbLZUNrzZQ=' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/ https://www.recaptcha.net/recaptcha/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' blob: data: https: http:; media-src 'self' blob: data: https: http:; connect-src 'self' https: wss: http: ws: blob: ipc: http://ipc.localhost; worker-src 'self' blob:; frame-src 'self' https://gifs.ru https://www.google.com/recaptcha/ https://www.recaptcha.net/recaptcha/; manifest-src 'self'"
+      "csp": "default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-dT6noyex1I8o5CS9Sx/y8UOqwpZYIridpGz92gcObIM=' 'sha256-pQY0fuQAnnVQH5nQfjo80rzGkQzeN3JeAtAJ+1KcD4k=' 'sha256-3042zLa3JXvrJe/2n8P/XpIKwqBdNTu7fwbLZUNrzZQ=' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/ https://www.recaptcha.net/recaptcha/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' blob: data: https: http:; media-src 'self' blob: data: https: http:; connect-src 'self' https: wss: http: ws: blob: ipc: http://ipc.localhost; worker-src 'self' blob:; frame-src 'self' https://gifs.ru/embed/ https://www.youtube-nocookie.com/embed/ https://player.vimeo.com/video/ https://rutube.ru/play/embed/ https://vkvideo.ru/video_ext.php https://www.dailymotion.com/embed/video/ https://geo.dailymotion.com/player/ https://player.twitch.tv/ https://clips.twitch.tv/embed https://www.google.com/recaptcha/ https://www.recaptcha.net/recaptcha/; manifest-src 'self'"
     }
   }
 }

@@ -9,6 +9,7 @@ import time
 import urllib.request
 
 from playwright.sync_api import sync_playwright
+from native_video import PLAYER_URL, PROVIDER_HTML, CHECK_PLAYER
 
 out = Path('windows-artifacts')
 out.mkdir(exist_ok=True)
@@ -71,10 +72,20 @@ with webview_debug_policy(), (out / 'native-launch.log').open('w') as log:
             page.get_by_role('button', name='Войти', exact=True).wait_for(timeout=60000)
             assert page.evaluate('!!crypto.subtle && !!indexedDB && !!WebAssembly')
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1')
-            assert '4.12.16' in page.locator('body').inner_text()
+            assert '4.12.17' in page.locator('body').inner_text()
             settings = page.evaluate("window.__TAURI_INTERNALS__.invoke('desktop_get_settings')")
             assert settings['platform'] == 'windows', settings
             page.screenshot(path=str(out / 'installed-startup.png'), full_page=True)
+            player_requests = []
+            def provider_fixture(route):
+                player_requests.append(dict(route.request.headers))
+                route.fulfill(content_type='text/html; charset=utf-8', body=PROVIDER_HTML)
+            page.context.route(PLAYER_URL, provider_fixture)
+            video = page.evaluate(CHECK_PLAYER, PLAYER_URL)
+            assert video['isolated'] and video['width'] == 160 and video['height'] == 90 and video['ready'] >= 2, video
+            assert len(player_requests) == 1 and player_requests[0].get('referer') == video['appOrigin'] + '/', player_requests
+            (out / 'native-video.json').write_text(json.dumps(video, indent=2))
+            print('PASS installed Windows WebView2: CSP allows pinned provider, frame is isolated, origin-only Referer and real WebM decodes', flush=True)
             page.evaluate("window.__TAURI_INTERNALS__.invoke('desktop_set_unread', {payload:{total:2,highlight:true,badge:null,hasUnread:true}})")
             page.evaluate("window.__TAURI_INTERNALS__.invoke('desktop_set_unread', {payload:{total:0,highlight:false,badge:null,hasUnread:false}})")
             (out / 'native-settings.json').write_text(json.dumps(settings, indent=2))

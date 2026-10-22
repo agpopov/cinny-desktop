@@ -5,6 +5,8 @@ import urllib.request, urllib.parse
 import websocket
 import atexit
 from pathlib import Path
+import base64
+from native_video import PLAYER_URL, PROVIDER_HTML, CHECK_PLAYER
 
 
 OUT = Path('android-artifacts') / os.environ.get('ANDROID_TEST_VARIANT','native-debug'); OUT.mkdir(parents=True,exist_ok=True)
@@ -12,16 +14,26 @@ APP = 'in.cinny.app'
 def adb(*args):
     return subprocess.check_output(['adb', *args], text=True).strip()
 class WebView:
-    def __init__(self, socket): self.socket=socket; self.counter=0
-    def evaluate(self, expression, value=None):
-        if value is not None: expression='('+expression+')('+json.dumps(value)+')'
-        self.counter+=1
-        self.socket.send(json.dumps({'id':self.counter,'method':'Runtime.evaluate','params':{'expression':expression,'awaitPromise':True,'returnByValue':True}}))
+    def __init__(self, socket): self.socket=socket; self.counter=0; self.player_requests=[]
+    def request(self, method, params):
+        self.counter+=1; command_id=self.counter
+        self.socket.send(json.dumps({'id':command_id,'method':method,'params':params}))
         while True:
             message=json.loads(self.socket.recv())
-            if message.get('id')==self.counter: break
+            if message.get('method')=='Fetch.requestPaused':
+                paused=message['params'];self.player_requests.append(paused['request'])
+                self.counter+=1
+                self.socket.send(json.dumps({'id':self.counter,'method':'Fetch.fulfillRequest','params':{
+                    'requestId':paused['requestId'],'responseCode':200,
+                    'responseHeaders':[{'name':'Content-Type','value':'text/html; charset=utf-8'}],
+                    'body':base64.b64encode(PROVIDER_HTML.encode()).decode(),
+                }}))
+            if message.get('id')==command_id: break
         if 'error' in message: raise RuntimeError(message['error'])
-        result=message['result']
+        return message['result']
+    def evaluate(self, expression, value=None):
+        if value is not None: expression='('+expression+')('+json.dumps(value)+')'
+        result=self.request('Runtime.evaluate',{'expression':expression,'awaitPromise':True,'returnByValue':True})
         if 'exceptionDetails' in result: raise RuntimeError(result['exceptionDetails'])
         return result['result'].get('value')
     def wait_for_function(self, expression, timeout=30000):
@@ -87,12 +99,20 @@ if __name__ == "__main__":
     adb('shell','pm','revoke',APP,'android.permission.POST_NOTIFICATIONS')
     launch(); page = connect()
     package=adb('shell','dumpsys','package',APP)
-    assert 'versionName='+os.environ.get('EXPECTED_ANDROID_VERSION','4.12.16') in package
-    assert 'versionCode='+os.environ.get('EXPECTED_ANDROID_VERSION_CODE','4012016') in package
+    assert 'versionName='+os.environ.get('EXPECTED_ANDROID_VERSION','4.12.17') in package
+    assert 'versionCode='+os.environ.get('EXPECTED_ANDROID_VERSION_CODE','4012017') in package
     page.wait_for_function("Array.from(document.querySelectorAll('button')).some(b=>b.textContent.trim()==='Войти')")
     assert page.evaluate('!!crypto.subtle && !!indexedDB && !!WebAssembly')
     assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+1')
     with open(OUT/'android-login-webview.png','wb') as f: subprocess.run(['adb','exec-out','screencap','-p'],stdout=f,check=True)
+    page.request('Fetch.enable',{'patterns':[{'urlPattern':'https://www.youtube-nocookie.com/embed/*','resourceType':'Document'}]})
+    video=page.evaluate(CHECK_PLAYER,PLAYER_URL)
+    assert video['isolated'] and video['width']==160 and video['height']==90 and video['ready']>=2,video
+    headers=[{k.lower():v for k,v in request['headers'].items()} for request in page.player_requests]
+    assert len(headers)==1 and headers[0].get('referer')==video['appOrigin']+'/',headers
+    (OUT/'native-video.json').write_text(json.dumps(video,indent=2))
+    page.request('Fetch.disable',{})
+    print('PASS Android WebView: CSP allows pinned provider, isolated frame, origin-only Referer and real WebM decodes',flush=True)
     # Verify that the native root resizes when the software keyboard appears.
     height=page.evaluate('innerHeight')
     bounds=webview_bounds()
