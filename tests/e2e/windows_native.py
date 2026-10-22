@@ -82,7 +82,7 @@ with webview_debug_policy(), (out / 'native-launch.log').open('w') as log:
                 route.fulfill(content_type='text/html; charset=utf-8', body=PROVIDER_HTML)
             page.context.route(PLAYER_URL, provider_fixture)
             video = page.evaluate(CHECK_PLAYER, PLAYER_URL)
-            assert video['isolated'] and video['width'] == 160 and video['height'] == 90 and video['ready'] >= 2, video
+            assert video['isolated'] and video['bridge'] == 'undefined' and video['width'] == 160 and video['height'] == 90 and video['ready'] >= 2, video
             assert len(player_requests) == 1 and player_requests[0].get('referer') == video['appOrigin'] + '/', player_requests
             (out / 'native-video.json').write_text(json.dumps(video, indent=2))
             print('PASS installed Windows WebView2: CSP allows pinned provider, frame is isolated, origin-only Referer and real WebM decodes', flush=True)

@@ -107,7 +107,7 @@ if __name__ == "__main__":
     with open(OUT/'android-login-webview.png','wb') as f: subprocess.run(['adb','exec-out','screencap','-p'],stdout=f,check=True)
     page.request('Fetch.enable',{'patterns':[{'urlPattern':'https://www.youtube-nocookie.com/embed/*','resourceType':'Document'}]})
     video=page.evaluate(CHECK_PLAYER,PLAYER_URL)
-    assert video['isolated'] and video['width']==160 and video['height']==90 and video['ready']>=2,video
+    assert video['isolated'] and video['bridge']=='undefined' and video['width']==160 and video['height']==90 and video['ready']>=2,video
     headers=[{k.lower():v for k,v in request['headers'].items()} for request in page.player_requests]
     assert len(headers)==1 and headers[0].get('referer')==video['appOrigin']+'/',headers
     (OUT/'native-video.json').write_text(json.dumps(video,indent=2))

@@ -59,6 +59,8 @@ jobs:
           npm ci
           node tests/android-prepare.test.mjs
           npm ci --prefix cinny
+          rustc --test tests/wry_frame_guard.rs -o "$RUNNER_TEMP/wry-frame-tests"
+          "$RUNNER_TEMP/wry-frame-tests"
           npm run test:unread:source --prefix cinny
           npm run test:mentions --prefix cinny
           npm run test:media --prefix cinny

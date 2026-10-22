@@ -58,3 +58,7 @@ windows = { version = "0.61", features = ["Win32_UI_Shell", "Win32_Foundation"] 
 
 [target.'cfg(any(target_os = "linux", target_os = "macos"))'.dependencies]
 notify-rust = "=4.18.0"
+
+# Keep the locked Wry version and backport main-frame-only initialization.
+[patch.crates-io]
+wry = { path = "vendor/wry" }

@@ -13,7 +13,7 @@ PROVIDER_HTML = '''<!doctype html><html><meta charset="utf-8"><title>Native vide
 <script>
 let isolated=false;try{parent.document.body;}catch{isolated=true;}
 const video=document.querySelector('video');
-video.addEventListener('loadeddata',()=>parent.postMessage({kind:'cinny-native-video-fixture',isolated,
+video.addEventListener('loadeddata',()=>parent.postMessage({kind:'cinny-native-video-fixture',isolated,bridge:typeof window.__TAURI_INTERNALS__,
 width:video.videoWidth,height:video.videoHeight,ready:video.readyState},'*'),{once:true});
 </script></html>'''
 

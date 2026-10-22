@@ -40,6 +40,11 @@ jobs:
       - name: Install cinny dependencies
         if: inputs.build_run_id == ''
         run: cd cinny && npm ci
+      - name: Test initialization frame guard
+        if: inputs.build_run_id == ''
+        run: |
+          rustc --test tests/wry_frame_guard.rs -o wry-frame-tests.exe
+          .\wry-frame-tests.exe
       - name: Test unread receipt handling
         if: inputs.build_run_id == ''
         run: cd cinny && npm run test:unread:source && npm run test:mentions && npm run test:media && npm run test:stickers && npm run test:key-export && npm run test:p1 && npm run test:p2 && npm run typecheck
