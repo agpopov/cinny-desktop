@@ -150,7 +150,7 @@ jobs:
             adb shell am start -n in.cinny.app/.MainActivity
             sleep 25
             adb shell pidof in.cinny.app
-            adb shell uiautomator dump /sdcard/release-window.xml
+            ANDROID_TEST_VARIANT=native-release PYTHONPATH=tests/e2e python3 -c "from android_native import dump_ui; dump_ui('/sdcard/release-window.xml')"
             adb pull /sdcard/release-window.xml android-artifacts/android-release-startup.xml
             adb exec-out screencap -p > android-artifacts/android-release-startup.png
             ANDROID_TEST_VARIANT=native-release python3 tests/e2e/android_native.py
@@ -161,7 +161,7 @@ jobs:
             sleep 25
             adb shell pidof in.cinny.app
             python3 tests/e2e/android_native.py
-            adb shell uiautomator dump /sdcard/window.xml
+            PYTHONPATH=tests/e2e python3 -c "from android_native import dump_ui; dump_ui('/sdcard/window.xml')"
             adb pull /sdcard/window.xml android-artifacts/android-startup.xml
             adb exec-out screencap -p > android-artifacts/android-startup.png
             adb logcat -d > android-artifacts/android-logcat.txt

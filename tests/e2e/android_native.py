@@ -105,7 +105,6 @@ def collect_diagnostics():
         adb('pull','/sdcard/window.xml',str(OUT/'android-startup.xml'))
         with open(OUT/'android-startup.png','wb') as f: subprocess.run(['adb','exec-out','screencap','-p'],stdout=f,check=True)
     except Exception as error: print('Diagnostics: '+str(error),flush=True)
-atexit.register(collect_diagnostics)
 def launch(target=None):
     args = ['shell','am','start','-n',APP+'/.MainActivity']
     if target:
@@ -113,6 +112,7 @@ def launch(target=None):
     adb(*args)
 
 if __name__ == "__main__":
+    atexit.register(collect_diagnostics)
     adb('shell','pm','revoke',APP,'android.permission.POST_NOTIFICATIONS')
     launch(); page = connect()
     package=adb('shell','dumpsys','package',APP)
