@@ -68,7 +68,7 @@ with webview_debug_policy(), (out / 'native-launch.log').open('w') as log:
             pages = [page for context in browser.contexts for page in context.pages]
             assert pages, 'Installed app has no WebView page'
             page = next((page for page in pages if not page.url.startswith('devtools:')), pages[0])
-            page.on('pageerror', lambda error: errors.append(str(error)))
+            page.on('pageerror', lambda error: errors.append({'message':str(error),'stack':error.stack}))
             page.get_by_role('button', name='Войти', exact=True).wait_for(timeout=60000)
             assert page.evaluate('!!crypto.subtle && !!indexedDB && !!WebAssembly')
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1')
