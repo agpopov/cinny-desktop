@@ -101,8 +101,8 @@ jobs:
           umask 077
           printf '%s' "$CINNY_ANDROID_KEYSTORE_BASE64" | base64 --decode > "$release_key"
           tools="$ANDROID_HOME/build-tools/36.0.0"
-          apk=android-artifacts/Cinny_4.12.15_android.apk
-          aab=android-artifacts/Cinny_4.12.15_android-release.aab
+          apk=android-artifacts/Cinny_4.12.16_android.apk
+          aab=android-artifacts/Cinny_4.12.16_android-release.aab
           "$tools/zipalign" -P 16 -f 4 src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk "$apk"
           "$tools/apksigner" sign --ks "$release_key" --ks-key-alias "$CINNY_ANDROID_KEY_ALIAS" --ks-pass env:CINNY_ANDROID_STORE_PASSWORD --key-pass env:CINNY_ANDROID_KEY_PASSWORD "$apk"
           "$tools/apksigner" verify --verbose --print-certs "$apk" | tee android-artifacts/android-signature.txt
@@ -123,7 +123,7 @@ jobs:
           grep 'android.permission.CAMERA' android-artifacts/android-permissions.txt
           grep 'android.permission.RECORD_AUDIO' android-artifacts/android-permissions.txt
           grep 'android.permission.MODIFY_AUDIO_SETTINGS' android-artifacts/android-permissions.txt
-          grep "versionCode='4012015' versionName='4.12.15'" android-artifacts/android-package.txt
+          grep "versionCode='4012016' versionName='4.12.16'" android-artifacts/android-package.txt
       - name: Collect packages and generated native source
         if: always()
         run: |
@@ -144,7 +144,7 @@ jobs:
           profile: pixel_6
           disable-animations: true
           script: |
-            adb install -r android-artifacts/Cinny_4.12.15_android.apk
+            adb install -r android-artifacts/Cinny_4.12.16_android.apk
             adb shell am start -n in.cinny.app/.MainActivity
             sleep 25
             adb shell pidof in.cinny.app
@@ -170,6 +170,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: cinny-4.12.15-android-release
+          name: cinny-4.12.16-android-release
           path: android-artifacts/
           if-no-files-found: error
