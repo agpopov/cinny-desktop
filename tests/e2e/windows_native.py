@@ -14,6 +14,7 @@ from native_video import PLAYER_URL, PROVIDER_HTML, CHECK_PLAYER
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'cinny/tests/e2e'))
 from session_fixture import ROOM, install_session_fixture, seed_session, assert_session_ready
+from session_navigation import assert_client_navigation
 
 out = Path('windows-artifacts')
 out.mkdir(exist_ok=True)
@@ -76,7 +77,7 @@ with webview_debug_policy(), (out / 'native-launch.log').open('w') as log:
             page.get_by_role('button', name='Войти', exact=True).wait_for(timeout=60000)
             assert page.evaluate('!!crypto.subtle && !!indexedDB && !!WebAssembly')
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1')
-            assert os.environ.get('EXPECTED_VERSION', '4.12.18') in page.locator('body').inner_text()
+            assert os.environ.get('EXPECTED_VERSION', '4.12.19') in page.locator('body').inner_text()
             settings = page.evaluate("window.__TAURI_INTERNALS__.invoke('desktop_get_settings')")
             assert settings['platform'] == 'windows', settings
             page.screenshot(path=str(out / 'installed-startup.png'), full_page=True)
@@ -109,6 +110,9 @@ with webview_debug_policy(), (out / 'native-launch.log').open('w') as log:
             assert_session_ready(page)
             page.screenshot(path=str(out / 'installed-saved-session-reload.png'), full_page=True)
             page.wait_for_timeout(1500)
+            navigation = assert_client_navigation(page, out)
+            (out / 'native-navigation.json').write_text(json.dumps(navigation, indent=2))
+            assert not any('/join/' in r['path'] or r['path'].endswith('/join') for r in session_requests), session_requests
             assert any(r['path'].endswith('/keys/upload') for r in session_requests), session_requests
             assert any(r['path'].endswith('/sync') for r in session_requests), session_requests
             (out / 'session-requests.json').write_text(json.dumps(session_requests, indent=2))

@@ -13,7 +13,7 @@ on:
         default: false
       release_tag:
         description: Existing draft prerelease to populate
-        default: v4.12.18
+        default: v4.12.19
 
 permissions:
   contents: write
@@ -37,6 +37,11 @@ jobs:
       - name: Install Rust stable
         if: inputs.build_run_id == ''
         uses: dtolnay/rust-toolchain@stable # branch-based releases
+      - uses: Swatinem/rust-cache@v2
+        if: inputs.build_run_id == ''
+        with:
+          workspaces: src-tauri
+          key: windows
       - name: Install cinny dependencies
         if: inputs.build_run_id == ''
         run: cd cinny && npm ci
@@ -47,7 +52,7 @@ jobs:
           .\wry-frame-tests.exe
       - name: Test unread receipt handling
         if: inputs.build_run_id == ''
-        run: cd cinny && npm run test:unread:source && npm run test:mentions && npm run test:media && npm run test:stickers && npm run test:key-export && npm run test:p1 && npm run test:p2 && npm run typecheck
+        run: cd cinny && npm run test:unread:source && npm run test:mentions && npm run test:media && npm run test:stickers && npm run test:key-export && npm run test:p1 && npm run test:p2 && npm run test:routes && npm run typecheck
       - name: Install tauri dependencies
         if: inputs.build_run_id == ''
         run: npm ci
