@@ -48,6 +48,24 @@ def connect():
         except Exception as error:
             last=error;time.sleep(1)
     raise RuntimeError('Android WebView unavailable: '+repr(last))
+def webview_bounds():
+    for attempt in range(6):
+        adb('shell','uiautomator','dump','/sdcard/login-window.xml')
+        tree=ET.fromstring(adb('shell','cat','/sdcard/login-window.xml'))
+        view=next((node for node in tree.iter('node') if node.get('class')=='android.webkit.WebView'),None)
+        if view is not None:
+            return list(map(int,view.get('bounds').replace('][',',').strip('[]').split(',')))
+        title=next((node.get('text') for node in tree.iter('node') if node.get('resource-id')=='android:id/alertTitle'),'')
+        # The emulator launcher may ANR during cold boot. Never dismiss an ANR
+        # from Cinny, and never count a hidden WebView as a usable native screen.
+        if title not in ("Quickstep isn't responding", "Launcher3 isn't responding"):
+            raise RuntimeError('Native WebView is not visible; foreground dialog: '+title)
+        close=next(node for node in tree.iter('node') if node.get('resource-id')=='android:id/aerr_close')
+        x1,y1,x2,y2=map(int,close.get('bounds').replace('][',',').strip('[]').split(','))
+        adb('shell','input','tap',str((x1+x2)//2),str((y1+y2)//2))
+        launch();time.sleep(1)
+    raise RuntimeError('The emulator launcher repeatedly blocked the WebView')
+
 def invoke(page, command, args=None):
     return page.evaluate('([cmd,args])=>window.__TAURI_INTERNALS__.invoke(cmd,args||{})', [command,args])
 def collect_diagnostics():
@@ -77,10 +95,7 @@ if __name__ == "__main__":
     with open(OUT/'android-login-webview.png','wb') as f: subprocess.run(['adb','exec-out','screencap','-p'],stdout=f,check=True)
     # Verify that the native root resizes when the software keyboard appears.
     height=page.evaluate('innerHeight')
-    adb('shell','uiautomator','dump','/sdcard/login-window.xml')
-    tree=ET.fromstring(adb('shell','cat','/sdcard/login-window.xml'))
-    view=next(node for node in tree.iter('node') if node.get('class')=='android.webkit.WebView')
-    bounds=list(map(int,view.get('bounds').replace('][',',').strip('[]').split(',')))
+    bounds=webview_bounds()
     point=page.evaluate("(()=>{const r=document.querySelector('input[name=usernameInput]').getBoundingClientRect();return [(r.x+r.width/2)*devicePixelRatio,(r.y+r.height/2)*devicePixelRatio]})()")
     adb('shell','input','tap',str(round(bounds[0]+point[0])),str(round(bounds[1]+point[1])))
     page.wait_for_function('innerHeight<'+str(height-100),timeout=10000)

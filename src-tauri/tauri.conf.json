@@ -37,6 +37,9 @@
         "depends": [
           "libayatana-appindicator3-1"
         ]
+      },
+      "appimage": {
+        "bundleMediaFramework": true
       }
     },
     "createUpdaterArtifacts": false

@@ -93,7 +93,7 @@ def main():
             'gh', 'run', 'download', str(run), '-R', repo,
             '--name', artifact, '--dir', str(target),
         ])
-        for marker, expected in [('desktop-source.txt', info['desktop_commit']),
+        for marker, expected in [('desktop-source.txt', info.get('platform_sources', {}).get(platform, info['desktop_commit'])),
                                  ('web-source.txt', info['web_commit'])]:
             markers = list(target.rglob(marker))
             if len(markers) != 1 or source_marker(markers[0]) != expected:
@@ -104,6 +104,13 @@ def main():
                 raise RuntimeError(f'Package missing or checksum mismatch: {name}')
             shutil.copy2(matches[0], output / name)
             packages.append(output / name)
+
+    validation_runs = [info['windows_validation_run'], info['linux_ci_run'],
+                       info['macos_ci_run'], info.get('android_validation_run', info['android_ci_run'])]
+    for run in set(validation_runs):
+        result = json.loads(gh('api', f'repos/{repo}/actions/runs/{run}'))
+        if result['status'] != 'completed' or result['conclusion'] != 'success':
+            raise RuntimeError(f'Platform validation did not pass: {run}')
 
     # Create the desktop tag only after every platform package has passed
     # verification. Actions' GITHUB_TOKEN prevents redundant tag-triggered builds.
