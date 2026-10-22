@@ -84,17 +84,39 @@ jobs:
         env:
           NODE_OPTIONS: --max_old_space_size=4096
         run: npm run tauri -- android build --debug --apk --target x86_64 --ci
-      - name: Prepare optimized installable preview with debug signing
+      - name: Sign Android release APK and bundle with persistent key
+        env:
+          CINNY_ANDROID_KEYSTORE_BASE64: ${{ secrets.CINNY_ANDROID_KEYSTORE_BASE64 }}
+          CINNY_ANDROID_STORE_PASSWORD: ${{ secrets.CINNY_ANDROID_STORE_PASSWORD }}
+          CINNY_ANDROID_KEY_PASSWORD: ${{ secrets.CINNY_ANDROID_KEY_PASSWORD }}
+          CINNY_ANDROID_KEY_ALIAS: ${{ secrets.CINNY_ANDROID_KEY_ALIAS }}
         run: |
-          unsigned_apk=src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk
+          set -euo pipefail
+          test -n "$CINNY_ANDROID_KEYSTORE_BASE64"
+          release_key="$RUNNER_TEMP/cinny-android-release.p12"
+          trap 'rm -f "$release_key"' EXIT
+          umask 077
+          printf '%s' "$CINNY_ANDROID_KEYSTORE_BASE64" | base64 --decode > "$release_key"
           tools="$ANDROID_HOME/build-tools/36.0.0"
-          "$tools/zipalign" -P 16 -f 4 "$unsigned_apk" android-artifacts/Cinny_4.12.12_android-preview.apk
-          "$tools/apksigner" sign --ks "$CINNY_ANDROID_DEBUG_KEYSTORE" --ks-key-alias androiddebugkey --ks-pass pass:android --key-pass pass:android android-artifacts/Cinny_4.12.12_android-preview.apk
-          "$tools/apksigner" verify --verbose android-artifacts/Cinny_4.12.12_android-preview.apk
-          "$tools/zipalign" -c -P 16 4 android-artifacts/Cinny_4.12.12_android-preview.apk
-          "$tools/aapt" dump badging android-artifacts/Cinny_4.12.12_android-preview.apk > android-artifacts/android-package.txt
+          apk=android-artifacts/Cinny_4.12.13_android.apk
+          aab=android-artifacts/Cinny_4.12.13_android-release.aab
+          "$tools/zipalign" -P 16 -f 4 src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk "$apk"
+          "$tools/apksigner" sign --ks "$release_key" --ks-key-alias "$CINNY_ANDROID_KEY_ALIAS" --ks-pass env:CINNY_ANDROID_STORE_PASSWORD --key-pass env:CINNY_ANDROID_KEY_PASSWORD "$apk"
+          "$tools/apksigner" verify --verbose --print-certs "$apk" | tee android-artifacts/android-signature.txt
+          python3 - <<'VERIFY'
+          import pathlib,re
+          expected=pathlib.Path('android-signing-certificate.sha256').read_text().strip().lower()
+          actual=re.search(r'Signer #1 certificate SHA-256 digest: ([0-9a-fA-F]+)',pathlib.Path('android-artifacts/android-signature.txt').read_text()).group(1).lower()
+          assert actual==expected, 'Android signing identity mismatch'
+          VERIFY
+          "$tools/zipalign" -c -P 16 4 "$apk"
+          cp src-tauri/gen/android/app/build/outputs/bundle/universalRelease/app-universal-release.aab "$aab"
+          jarsigner -keystore "$release_key" -storepass:env CINNY_ANDROID_STORE_PASSWORD -keypass:env CINNY_ANDROID_KEY_PASSWORD -sigalg SHA256withRSA -digestalg SHA-256 "$aab" "$CINNY_ANDROID_KEY_ALIAS"
+          jarsigner -verify -verbose -certs "$aab" > android-artifacts/android-bundle-signature.txt
+          grep 'jar verified' android-artifacts/android-bundle-signature.txt
+          "$tools/aapt" dump badging "$apk" > android-artifacts/android-package.txt
           head -n 8 android-artifacts/android-package.txt
-          grep "versionCode='4012012' versionName='4.12.12'" android-artifacts/android-package.txt
+          grep "versionCode='4012013' versionName='4.12.13'" android-artifacts/android-package.txt
       - name: Collect packages and generated native source
         if: always()
         run: |
@@ -115,7 +137,7 @@ jobs:
           profile: pixel_6
           disable-animations: true
           script: |
-            adb install -r android-artifacts/Cinny_4.12.12_android-preview.apk
+            adb install -r android-artifacts/Cinny_4.12.13_android.apk
             adb shell am start -n in.cinny.app/.MainActivity
             sleep 25
             adb shell pidof in.cinny.app
@@ -124,6 +146,7 @@ jobs:
             adb exec-out screencap -p > android-artifacts/android-release-startup.png
             ANDROID_TEST_VARIANT=native-release python3 tests/e2e/android_native.py
             adb shell am force-stop in.cinny.app
+            adb uninstall in.cinny.app
             adb install -r android-artifacts/app-universal-debug.apk
             adb shell am start -n in.cinny.app/.MainActivity
             sleep 25
@@ -140,6 +163,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: cinny-4.12.12-android-preview
+          name: cinny-4.12.13-android-release
           path: android-artifacts/
           if-no-files-found: error

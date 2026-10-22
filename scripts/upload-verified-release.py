@@ -76,15 +76,12 @@ def main():
             f'Cinny_{version}_x64-setup.exe', f'Cinny_{version}_x64_en-US.msi']),
         ('linux', info['linux_ci_run'], f'cinny-{tag}-linux-x86_64', [
             f'Cinny_{version}_amd64.deb', f'Cinny_{version}_amd64.AppImage']),
-        ('android', info['android_ci_run'], f'cinny-{version}-android-preview', [
-            f'Cinny_{version}_android_preview.apk', f'Cinny_{version}_android-release.aab']),
+        ('android', info['android_ci_run'], f'cinny-{version}-android-release', [
+            f'Cinny_{version}_android.apk', f'Cinny_{version}_android-release.aab']),
         ('macos', info['macos_ci_run'], f'cinny-{tag}-macos-universal', [
             f'Cinny_{version}_universal.dmg', f'Cinny_{version}_universal.app.zip']),
     ]
-    aliases = {
-        f'Cinny_{version}_android_preview.apk': f'Cinny_{version}_android-preview.apk',
-        f'Cinny_{version}_android-release.aab': 'app-universal-release.aab',
-    }
+    aliases = {}
     packages = []
     for platform, run, artifact, names in platforms:
         target = Path('release-downloads') / platform
