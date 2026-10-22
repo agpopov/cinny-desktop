@@ -98,6 +98,7 @@ with sync_playwright() as p:
     browser = p.chromium.launch(args=["--no-proxy-server", "--autoplay-policy=no-user-gesture-required"])
     ctx = browser.new_context(viewport={"width": 1400, "height": 900}, locale="ru-RU")
     page = ctx.new_page()
+    page.route("**/config.json", lambda route: route.fulfill(json={"homeserverList":[HS],"allowCustomHomeservers":True,"hashRouter":{"enabled":False,"basename":"/"}}))
     errors = []
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.add_init_script(MOCK)
@@ -106,7 +107,7 @@ with sync_playwright() as p:
       localStorage.setItem('cinny_access_token', s.access_token);
       localStorage.setItem('cinny_device_id', s.device_id);
       localStorage.setItem('cinny_user_id', s.user_id);
-      localStorage.setItem('cinny_hs_base_url', 'http://localhost:8008');
+      localStorage.setItem('cinny_hs_base_url', 'http://127.0.0.1:8008');
     }""", alice_ui)
     page.goto(APP + "/")
     page.wait_for_timeout(6000)

@@ -87,7 +87,7 @@ with sync_playwright() as p:
     page.locator("a:has-text('Фичи')").first.hover(); page.get_by_role("button",name="Свернуть треды").click(); page.wait_for_timeout(500)
     check("список сворачивается целиком", nav.count()==0 and page.get_by_role("button",name="Показать треды").count()==1)
     page.screenshot(path=SHOTS+"/f7-collapsed.png")
-    page.reload(); page.wait_for_timeout(5000)
+    page.reload(); page.wait_for_timeout(5000); page.locator("a:has-text('Фичи')").first.hover()
     check("свёрнутое состояние сохраняется после перезапуска", nav.count()==0 and page.get_by_role("button",name="Показать треды").count()==1)
     page.get_by_role("button",name="Показать треды").click(); page.wait_for_timeout(500)
     check("список разворачивается обратно", items.count()==3, items.count())
