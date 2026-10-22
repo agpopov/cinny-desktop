@@ -34,7 +34,9 @@
     },
     "linux": {
       "deb": {
-        "depends": []
+        "depends": [
+          "libayatana-appindicator3-1"
+        ]
       }
     },
     "createUpdaterArtifacts": false
@@ -47,7 +49,7 @@
   },
   "productName": "Cinny",
   "mainBinaryName": "cinny",
-  "version": "4.12.10",
+  "version": "4.12.11",
   "identifier": "in.cinny.app",
   "plugins": {
     "updater": {

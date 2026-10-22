@@ -3,13 +3,18 @@ on:
   workflow_dispatch:
     inputs:
       source_ref:
-        description: Immutable source tag or commit to build
-        required: true
-        default: v4.12.10
+        description: Optional source tag or commit (empty means the selected workflow commit)
+        required: false
+        default: ''
       release_tag:
-        description: Existing release version
+        description: Package version to validate
         required: true
-        default: v4.12.10
+        default: v4.12.11
+      platform:
+        description: Platforms to build
+        type: choice
+        options: [all, linux, macos]
+        default: all
 permissions:
   contents: read
 jobs:
@@ -17,20 +22,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - platform: linux-x86_64
-            os: ubuntu-22.04
-            target: x86_64-unknown-linux-gnu
-          - platform: macos-universal
-            os: macos-14
-            target: universal-apple-darwin
-    runs-on: ${{ matrix.os }}
+        platform: ${{ inputs.platform == 'macos' && fromJSON('["macos-universal"]') || inputs.platform == 'linux' && fromJSON('["linux-x86_64"]') || fromJSON('["linux-x86_64","macos-universal"]') }}
+    runs-on: ${{ matrix.platform == 'macos-universal' && 'macos-15' || 'ubuntu-22.04' }}
     steps:
       - name: Resolve source to immutable commit
         id: source
         env:
           GH_TOKEN: ${{ github.token }}
-          BUILD_SOURCE_REF: ${{ inputs.source_ref }}
+          BUILD_SOURCE_REF: ${{ inputs.source_ref || github.sha }}
         run: echo "sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/$BUILD_SOURCE_REF" --jq .sha)" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -58,6 +57,8 @@ jobs:
           npm ci
           npm ci --prefix cinny
           npm run test:unread --prefix cinny
+          npm run test:mentions --prefix cinny
+          npm run typecheck --prefix cinny
       - name: Record source provenance
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
@@ -101,7 +102,7 @@ jobs:
           echo '{"bundle":{"macOS":{"minimumSystemVersion":"11.0","signingIdentity":"-"}}}' > src-tauri/tauri.platform-ci.conf.json
           npm run tauri -- build --target universal-apple-darwin --bundles app,dmg --config src-tauri/tauri.platform-ci.conf.json
           cp src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg platform-artifacts/
-          ditto -c -k --sequesterRsrc --keepParent src-tauri/target/universal-apple-darwin/release/bundle/macos/Cinny.app platform-artifacts/Cinny_4.12.10_universal.app.zip
+          ditto -c -k --sequesterRsrc --keepParent src-tauri/target/universal-apple-darwin/release/bundle/macos/Cinny.app platform-artifacts/Cinny_4.12.11_universal.app.zip
           lipo -archs src-tauri/target/universal-apple-darwin/release/bundle/macos/Cinny.app/Contents/MacOS/cinny
           codesign --verify --deep --strict --verbose=2 src-tauri/target/universal-apple-darwin/release/bundle/macos/Cinny.app
       - name: macOS native launch smoke test
