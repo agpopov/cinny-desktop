@@ -1,0 +1,9 @@
+{
+  "identifier": "linux-clipboard",
+  "description": "Read screenshot images on an explicit paste gesture in the Linux editor",
+  "local": true,
+  "remote": { "urls": ["http://localhost:44548"] },
+  "windows": ["main"],
+  "platforms": ["linux"],
+  "permissions": ["clipboard-manager:allow-read-image"]
+}

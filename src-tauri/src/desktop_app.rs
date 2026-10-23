@@ -45,12 +45,17 @@ pub fn run() {
         builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
     }
 
-    builder
+    let builder = builder
         // Второй запуск (ярлык, автозапуск) просто показывает уже открытое окно.
         // Регистрируется первым, как требует плагин.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             desktop::show_main_window(app);
-        }))
+        }));
+
+    #[cfg(target_os = "linux")]
+    let builder = builder.plugin(tauri_plugin_clipboard_manager::init());
+
+    builder
         .plugin(tauri_plugin_autostart::init(
             MacosLauncher::LaunchAgent,
             Some(vec![desktop::MINIMIZED_ARG]),
