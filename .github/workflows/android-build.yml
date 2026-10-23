@@ -167,6 +167,19 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
+      - name: Download previous signed APK for Android 13 upgrade regression
+        run: |
+          curl -fL --retry 3 https://github.com/agpopov/cinny-desktop/releases/download/v4.12.19/Cinny_4.12.19_android.apk -o "$RUNNER_TEMP/cinny-previous.apk"
+          echo "9a2fb2503b9ab96fc34c2deacbeb10dea4cb60c18e7671dbc86a6f05c0242629  $RUNNER_TEMP/cinny-previous.apk" | sha256sum -c -
+      - name: Android 13 release installation and update regression
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 33
+          arch: x86_64
+          target: default
+          profile: pixel_6
+          disable-animations: true
+          script: python3 tests/e2e/android_install.py --serial emulator-5554 --api 33 --apk android-artifacts/Cinny_4.13.0_android.apk --previous-apk "$RUNNER_TEMP/cinny-previous.apk" --output android-artifacts/api33-installation
       - name: Native Android emulator smoke test
         uses: reactivecircus/android-emulator-runner@v2
         with:
