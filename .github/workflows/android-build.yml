@@ -86,6 +86,10 @@ jobs:
         env:
           NODE_OPTIONS: --max_old_space_size=4096
         run: npm run tauri -- android build --apk --aab --target aarch64 armv7 x86_64 --ci
+      - name: Build smaller release APKs for individual architectures
+        env:
+          NODE_OPTIONS: --max_old_space_size=4096
+        run: npm run tauri -- android build --split-per-abi --apk --target aarch64 armv7 x86_64 --ci
       - name: Build installable emulator preview
         env:
           NODE_OPTIONS: --max_old_space_size=4096
@@ -106,8 +110,15 @@ jobs:
           tools="$ANDROID_HOME/build-tools/36.0.0"
           apk=android-artifacts/Cinny_4.13.0_android.apk
           aab=android-artifacts/Cinny_4.13.0_android-release.aab
-          "$tools/zipalign" -P 16 -f 4 src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk "$apk"
-          "$tools/apksigner" sign --ks "$release_key" --ks-key-alias "$CINNY_ANDROID_KEY_ALIAS" --ks-pass env:CINNY_ANDROID_STORE_PASSWORD --key-pass env:CINNY_ANDROID_KEY_PASSWORD "$apk"
+          for pair in universal:android arm64:android-arm64 arm:android-arm32 x86_64:android-x86_64; do
+            flavor="${pair%%:*}"
+            suffix="${pair#*:}"
+            python3 scripts/sign-android-apk.py \
+              --input "src-tauri/gen/android/app/build/outputs/apk/$flavor/release/app-$flavor-release-unsigned.apk" \
+              --output "android-artifacts/Cinny_4.13.0_$suffix.apk" \
+              --keystore "$release_key" --alias "$CINNY_ANDROID_KEY_ALIAS" \
+              --report "android-artifacts/$suffix-signing.json"
+          done
           "$tools/apksigner" verify --verbose --print-certs "$apk" | tee android-artifacts/android-signature.txt
           python3 - <<'VERIFY'
           import pathlib,re
@@ -179,7 +190,12 @@ jobs:
           target: default
           profile: pixel_6
           disable-animations: true
-          script: python3 tests/e2e/android_install.py --serial emulator-5554 --api 33 --apk android-artifacts/Cinny_4.13.0_android.apk --previous-apk "$RUNNER_TEMP/cinny-previous.apk" --output android-artifacts/api33-installation
+          script: |
+            python3 tests/e2e/android_install.py --serial emulator-5554 --api 33 --apk android-artifacts/Cinny_4.13.0_android.apk --previous-apk "$RUNNER_TEMP/cinny-previous.apk" --output android-artifacts/api33-installation
+            adb shell am force-stop in.cinny.app
+            adb install --no-streaming -r android-artifacts/Cinny_4.13.0_android-x86_64.apk
+            adb uninstall in.cinny.app
+            adb install --no-streaming android-artifacts/Cinny_4.13.0_android-x86_64.apk
       - name: Native Android emulator smoke test
         uses: reactivecircus/android-emulator-runner@v2
         with:

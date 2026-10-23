@@ -95,6 +95,9 @@ def main():
             markers = list(target.rglob(marker))
             if len(markers) != 1 or source_marker(markers[0]) != expected:
                 raise RuntimeError(f'{platform} source mismatch: {marker}')
+        if platform == 'android':
+            names += [f'Cinny_{version}_android-{abi}.apk' for abi in ('arm64', 'arm32', 'x86_64')
+                      if f'Cinny_{version}_android-{abi}.apk' in checksums]
         for name in names:
             matches = list(target.rglob(aliases.get(name, name)))
             if len(matches) != 1 or digest(matches[0]) != checksums[name]:
