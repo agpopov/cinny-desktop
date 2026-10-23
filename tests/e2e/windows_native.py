@@ -20,6 +20,9 @@ out = Path('windows-artifacts')
 out.mkdir(exist_ok=True)
 binary = Path(os.environ['CINNY_BINARY'])
 assert binary.is_file(), binary
+expected_version = os.environ.get('EXPECTED_VERSION') or json.loads(
+    (Path(__file__).resolve().parents[2] / 'package.json').read_text()
+)['version']
 env = os.environ.copy()
 env['WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS'] = '--remote-debugging-port=9222'
 env['WEBVIEW2_USER_DATA_FOLDER'] = str((out / 'webview-profile').resolve())
@@ -77,7 +80,7 @@ with webview_debug_policy(), (out / 'native-launch.log').open('w') as log:
             page.get_by_role('button', name='Войти', exact=True).wait_for(timeout=60000)
             assert page.evaluate('!!crypto.subtle && !!indexedDB && !!WebAssembly')
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1')
-            assert os.environ.get('EXPECTED_VERSION', '4.13.0') in page.locator('body').inner_text()
+            assert expected_version in page.locator('body').inner_text()
             settings = page.evaluate("window.__TAURI_INTERNALS__.invoke('desktop_get_settings')")
             assert settings['platform'] == 'windows', settings
             page.screenshot(path=str(out / 'installed-startup.png'), full_page=True)
