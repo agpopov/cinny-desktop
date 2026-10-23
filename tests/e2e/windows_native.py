@@ -77,7 +77,7 @@ with webview_debug_policy(), (out / 'native-launch.log').open('w') as log:
             page.get_by_role('button', name='Войти', exact=True).wait_for(timeout=60000)
             assert page.evaluate('!!crypto.subtle && !!indexedDB && !!WebAssembly')
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1')
-            assert os.environ.get('EXPECTED_VERSION', '4.12.19') in page.locator('body').inner_text()
+            assert os.environ.get('EXPECTED_VERSION', '4.13.0') in page.locator('body').inner_text()
             settings = page.evaluate("window.__TAURI_INTERNALS__.invoke('desktop_get_settings')")
             assert settings['platform'] == 'windows', settings
             page.screenshot(path=str(out / 'installed-startup.png'), full_page=True)

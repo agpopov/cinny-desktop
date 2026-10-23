@@ -52,7 +52,7 @@
   },
   "productName": "Cinny",
   "mainBinaryName": "cinny",
-  "version": "4.12.19",
+  "version": "4.13.0",
   "identifier": "in.cinny.app",
   "plugins": {
     "updater": {

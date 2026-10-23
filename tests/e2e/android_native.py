@@ -1,5 +1,5 @@
 """Exercise the installed debug APK through its real Android WebView and plugins."""
-import json, os, subprocess, time
+import json, os, subprocess, time, re
 import xml.etree.ElementTree as ET
 import urllib.request, urllib.parse
 import websocket
@@ -116,8 +116,8 @@ if __name__ == "__main__":
     adb('shell','pm','revoke',APP,'android.permission.POST_NOTIFICATIONS')
     launch(); page = connect()
     package=adb('shell','dumpsys','package',APP)
-    assert 'versionName='+os.environ.get('EXPECTED_ANDROID_VERSION','4.12.19') in package
-    assert 'versionCode='+os.environ.get('EXPECTED_ANDROID_VERSION_CODE','4012019') in package
+    assert 'versionName='+os.environ.get('EXPECTED_ANDROID_VERSION','4.13.0') in package
+    assert 'versionCode='+os.environ.get('EXPECTED_ANDROID_VERSION_CODE','4013000') in package
     page.wait_for_function("Array.from(document.querySelectorAll('button')).some(b=>b.textContent.trim()==='Войти')")
     assert page.evaluate('!!crypto.subtle && !!indexedDB && !!WebAssembly')
     assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+1')
@@ -166,3 +166,24 @@ if __name__ == "__main__":
     assert invoke(page,'mobile_take_notification_target') == {}
     page.close()
 print('PASS Android native UI, permission, notification delivery, warm/cold target and consume-once checks')
+
+if __name__ == "__main__":
+    # Inspect the icon as the launcher actually masks it, after the app smoke checks.
+    adb('shell', 'input', 'keyevent', 'KEYCODE_HOME')
+    time.sleep(1)
+    width, height = map(int, re.findall(r'(\d+)x(\d+)', adb('shell', 'wm', 'size'))[-1])
+    adb('shell', 'input', 'swipe', str(width//2), str(round(height*.85)), str(width//2), str(round(height*.2)), '350')
+    for attempt in range(3):
+        time.sleep(1)
+        dump_ui('/sdcard/cinny-launcher.xml')
+        hierarchy = ET.fromstring(adb('shell', 'cat', '/sdcard/cinny-launcher.xml'))
+        icon = next((node for node in hierarchy.iter('node') if node.get('text') == 'Cinny' or node.get('content-desc') == 'Cinny'), None)
+        if icon is not None:
+            break
+    assert icon is not None, 'Installed Cinny icon is missing from the Android launcher'
+    with open(OUT/'android-launcher-icon.png', 'wb') as stream:
+        subprocess.run(['adb', 'exec-out', 'screencap', '-p'], stdout=stream, check=True)
+    (OUT/'android-launcher.xml').write_text(adb('shell', 'cat', '/sdcard/cinny-launcher.xml'))
+    x1, y1, x2, y2 = map(int, icon.get('bounds').replace('][', ',').strip('[]').split(','))
+    adb('shell', 'input', 'tap', str((x1+x2)//2), str((y1+y2)//2))
+    print('PASS Android launcher displays the installed Cinny icon; screenshot captured', flush=True)

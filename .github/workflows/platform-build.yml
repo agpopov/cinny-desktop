@@ -9,7 +9,7 @@ on:
       release_tag:
         description: Package version to validate
         required: true
-        default: v4.12.19
+        default: v4.13.0
       platform:
         description: Platforms to build
         type: choice
@@ -110,7 +110,7 @@ jobs:
           echo '{"bundle":{"macOS":{"minimumSystemVersion":"11.0","signingIdentity":"-"}}}' > src-tauri/tauri.platform-ci.conf.json
           npm run tauri -- build --target universal-apple-darwin --bundles app,dmg --config src-tauri/tauri.platform-ci.conf.json
           cp src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg platform-artifacts/
-          ditto -c -k --sequesterRsrc --keepParent src-tauri/target/universal-apple-darwin/release/bundle/macos/Cinny.app platform-artifacts/Cinny_4.12.19_universal.app.zip
+          ditto -c -k --sequesterRsrc --keepParent src-tauri/target/universal-apple-darwin/release/bundle/macos/Cinny.app platform-artifacts/Cinny_4.13.0_universal.app.zip
           lipo -archs src-tauri/target/universal-apple-darwin/release/bundle/macos/Cinny.app/Contents/MacOS/cinny
           codesign --verify --deep --strict --verbose=2 src-tauri/target/universal-apple-darwin/release/bundle/macos/Cinny.app
           /usr/libexec/PlistBuddy -c 'Print :NSCameraUsageDescription' src-tauri/target/universal-apple-darwin/release/bundle/macos/Cinny.app/Contents/Info.plist
