@@ -79,6 +79,7 @@ jobs:
         run: |
           npm run tauri -- android init --ci --skip-targets-install
           node scripts/prepare-android.mjs
+          node -e 'const fs=require("fs"); const v=require("./package.json").version; const [a,b,c]=v.split(".").map(Number); fs.appendFileSync(process.env.GITHUB_ENV, `EXPECTED_ANDROID_VERSION=${v}\nEXPECTED_ANDROID_VERSION_CODE=${a*1000000+b*1000+c}\n`);'
           mkdir -p android-artifacts
           git rev-parse HEAD > android-artifacts/desktop-source.txt
           git -C cinny rev-parse HEAD > android-artifacts/web-source.txt

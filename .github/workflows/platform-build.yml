@@ -108,9 +108,16 @@ jobs:
           NODE_OPTIONS: --max_old_space_size=4096
         run: |
           echo '{"bundle":{"macOS":{"minimumSystemVersion":"11.0","signingIdentity":"-"}}}' > src-tauri/tauri.platform-ci.conf.json
-          npm run tauri -- build --target universal-apple-darwin --bundles app,dmg --config src-tauri/tauri.platform-ci.conf.json
-          cp src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg platform-artifacts/
-          ditto -c -k --sequesterRsrc --keepParent src-tauri/target/universal-apple-darwin/release/bundle/macos/Cinny.app platform-artifacts/Cinny_4.13.1_universal.app.zip
+          npm run tauri -- build --target universal-apple-darwin --bundles app --config src-tauri/tauri.platform-ci.conf.json
+          version="$(node -p 'require("./package.json").version')"
+          app=src-tauri/target/universal-apple-darwin/release/bundle/macos/Cinny.app
+          ditto -c -k --sequesterRsrc --keepParent "$app" "platform-artifacts/Cinny_${version}_universal.app.zip"
+          # Package without the Finder/AppleScript layout step, which fails on headless runners.
+          dmg_stage="$(mktemp -d)"
+          ditto "$app" "$dmg_stage/Cinny.app"
+          ln -s /Applications "$dmg_stage/Applications"
+          hdiutil create -volname "Cinny $version" -srcfolder "$dmg_stage" -ov -format UDZO "platform-artifacts/Cinny_${version}_universal.dmg"
+          hdiutil verify "platform-artifacts/Cinny_${version}_universal.dmg"
           lipo -archs src-tauri/target/universal-apple-darwin/release/bundle/macos/Cinny.app/Contents/MacOS/cinny
           codesign --verify --deep --strict --verbose=2 src-tauri/target/universal-apple-darwin/release/bundle/macos/Cinny.app
           /usr/libexec/PlistBuddy -c 'Print :NSCameraUsageDescription' src-tauri/target/universal-apple-darwin/release/bundle/macos/Cinny.app/Contents/Info.plist
