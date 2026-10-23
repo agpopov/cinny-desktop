@@ -129,14 +129,32 @@ jobs:
           grep "versionCode='4013000' versionName='4.13.0'" android-artifacts/android-package.txt
       - name: Verify packaged adaptive and themed launcher icons
         run: |
-          tools="$ANDROID_HOME/build-tools/36.0.0"
-          apk=android-artifacts/Cinny_4.13.0_android.apk
-          "$tools/aapt" dump xmltree "$apk" res/mipmap-anydpi-v26/ic_launcher.xml > android-artifacts/android-launcher-icon.txt
-          "$tools/aapt" dump xmltree "$apk" res/mipmap-anydpi-v33/ic_launcher.xml > android-artifacts/android-themed-icon.txt
-          grep 'E: adaptive-icon' android-artifacts/android-launcher-icon.txt
-          grep 'E: foreground' android-artifacts/android-launcher-icon.txt
-          grep 'E: background' android-artifacts/android-launcher-icon.txt
-          grep 'E: monochrome' android-artifacts/android-themed-icon.txt
+          python3 - <<'ICON_CHECK'
+          import os,re,subprocess,json
+          from pathlib import Path
+          tools=Path(os.environ.get('ANDROID_HOME','/tmp/cinny-android-sdk'))/'build-tools/36.0.0'
+          apk=Path(os.environ.get('CINNY_ICON_APK','android-artifacts/Cinny_4.13.0_android.apk'))
+          out=Path(os.environ.get('CINNY_ICON_OUTPUT','android-artifacts'));out.mkdir(parents=True,exist_ok=True)
+          resources=subprocess.check_output([str(tools/'aapt2'),'dump','resources',str(apk)],text=True)
+          foreground=re.search(r'resource (0x[0-9a-f]+) drawable/ic_cinny_foreground\b',resources).group(1)
+          background=re.search(r'resource (0x[0-9a-f]+) drawable/ic_cinny_background\b',resources).group(1)
+          report=[]
+          for name in ['ic_launcher','ic_launcher_round']:
+           block=re.search(r'(?m)^    resource \S+ mipmap/'+name+r'\n((?:      .*\n)+)',resources).group(1)
+           variants=dict(re.findall(r'\(([^)]*)\) \(file\) (\S+) type=XML',block))
+           for label in ['adaptive','themed']:
+            candidates=[(cfg,path) for cfg,path in variants.items() if cfg.startswith('anydpi') and (('v33' in cfg)==(label=='themed'))]
+            assert len(candidates)==1,(name,label,variants)
+            cfg,path=candidates[0]
+            xml=subprocess.check_output([str(tools/'aapt'),'dump','xmltree',str(apk),path],text=True)
+            assert 'E: adaptive-icon' in xml and 'E: foreground' in xml and 'E: background' in xml
+            assert '@'+foreground in xml and '@'+background in xml
+            assert ('E: monochrome' in xml)==(label=='themed')
+            (out/(name+'-'+label+'.txt')).write_text(xml)
+            report.append({'resource':name,'configuration':cfg,'file':path,'monochrome':label=='themed'})
+          (out/'android-icon-resources.json').write_text(json.dumps(report,indent=2)+'\n')
+          print('PASS compiled adaptive/round/themed icons reference Cinny vector layers after resource optimization')
+          ICON_CHECK
       - name: Collect packages and generated native source
         if: always()
         run: |
