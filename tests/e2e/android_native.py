@@ -179,20 +179,28 @@ print('PASS Android native UI, permission, notification delivery, warm/cold targ
 if __name__ == "__main__":
     # Inspect the icon as the launcher actually masks it, after the app smoke checks.
     adb('shell', 'input', 'keyevent', 'KEYCODE_HOME')
-    time.sleep(1)
-    width, height = map(int, re.findall(r'(\d+)x(\d+)', adb('shell', 'wm', 'size'))[-1])
-    adb('shell', 'input', 'swipe', str(width//2), str(round(height*.85)), str(width//2), str(round(height*.2)), '350')
-    for attempt in range(3):
+    # Quickstep can cancel a swipe while finishing its Home transition. Wait
+    # for the launcher and use its Ctrl+A shortcut to open the real app drawer.
+    # AOSP Launcher.onKeyShortcut handles this only from the normal Home state.
+    icon = None
+    for attempt in range(6):
         time.sleep(1)
         dump_ui('/sdcard/cinny-launcher.xml')
-        hierarchy = ET.fromstring(adb('shell', 'cat', '/sdcard/cinny-launcher.xml'))
-        icon = next((node for node in hierarchy.iter('node') if node.get('text') == 'Cinny' or node.get('content-desc') == 'Cinny'), None)
+        xml = adb('shell', 'cat', '/sdcard/cinny-launcher.xml')
+        (OUT/f'android-launcher-attempt-{attempt}.xml').write_text(xml)
+        hierarchy = ET.fromstring(xml)
+        icon = next((node for node in hierarchy.iter('node') if node.get('package') == 'com.android.launcher3' and (node.get('text') == 'Cinny' or node.get('content-desc') == 'Cinny')), None)
         if icon is not None:
             break
+        if any(node.get('package') == 'com.android.launcher3' for node in hierarchy.iter('node')):
+            adb('shell', 'input', 'keycombination', 'KEYCODE_CTRL_LEFT', 'KEYCODE_A')
     assert icon is not None, 'Installed Cinny icon is missing from the Android launcher'
     with open(OUT/'android-launcher-icon.png', 'wb') as stream:
         subprocess.run(['adb', 'exec-out', 'screencap', '-p'], stdout=stream, check=True)
     (OUT/'android-launcher.xml').write_text(adb('shell', 'cat', '/sdcard/cinny-launcher.xml'))
     x1, y1, x2, y2 = map(int, icon.get('bounds').replace('][', ',').strip('[]').split(','))
     adb('shell', 'input', 'tap', str((x1+x2)//2), str((y1+y2)//2))
+    page = connect()
+    page.wait_for_function("document.visibilityState === 'visible'")
+    page.close()
     print('PASS Android launcher displays the installed Cinny icon; screenshot captured', flush=True)
