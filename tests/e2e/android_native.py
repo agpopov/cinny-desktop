@@ -143,7 +143,9 @@ if __name__ == "__main__":
     page.evaluate("window.nativeBackCount=0;window.nativeBackProbe=e=>{e.preventDefault();window.nativeBackCount++};window.addEventListener('cinny:back',window.nativeBackProbe)")
     adb('shell','input','keyevent','4')
     page.wait_for_function('nativeBackCount===1',timeout=10000)
-    assert APP in adb('shell','dumpsys','window','windows').split('mCurrentFocus=')[-1].split('\n')[0]
+    # Android 15 omits mCurrentFocus from the "window windows" sub-dump.
+    # A visible WebView after the callback confirms that Back kept the activity open.
+    assert page.evaluate("document.visibilityState") == 'visible'
     page.evaluate("window.removeEventListener('cinny:back',window.nativeBackProbe)")
     print('PASS Android physical Back reaches the SPA and keeps the channel activity in foreground',flush=True)
     assert invoke(page,'native_notification_permission',{'request':False}) in ('prompt','prompt-with-rationale','denied')
