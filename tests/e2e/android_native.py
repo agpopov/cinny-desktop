@@ -139,6 +139,13 @@ if __name__ == "__main__":
     assert page.evaluate('document.activeElement.getBoundingClientRect().bottom<=innerHeight')
     with open(OUT/'android-keyboard.png','wb') as f: subprocess.run(['adb','exec-out','screencap','-p'],stdout=f,check=True)
     adb('shell','input','keyevent','4');time.sleep(1)
+    # Exercise the actual Android system Back callback, independently of history.
+    page.evaluate("window.nativeBackCount=0;window.nativeBackProbe=e=>{e.preventDefault();window.nativeBackCount++};window.addEventListener('cinny:back',window.nativeBackProbe)")
+    adb('shell','input','keyevent','4')
+    page.wait_for_function('nativeBackCount===1',timeout=10000)
+    assert APP in adb('shell','dumpsys','window','windows').split('mCurrentFocus=')[-1].split('\n')[0]
+    page.evaluate("window.removeEventListener('cinny:back',window.nativeBackProbe)")
+    print('PASS Android physical Back reaches the SPA and keeps the channel activity in foreground',flush=True)
     assert invoke(page,'native_notification_permission',{'request':False}) in ('prompt','prompt-with-rationale','denied')
     adb('shell','pm','grant',APP,'android.permission.POST_NOTIFICATIONS')
     assert invoke(page,'native_notification_permission',{'request':False}) == 'granted'

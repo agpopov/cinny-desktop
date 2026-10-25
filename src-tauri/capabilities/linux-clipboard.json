@@ -5,5 +5,5 @@
   "remote": { "urls": ["http://localhost:44548"] },
   "windows": ["main"],
   "platforms": ["linux"],
-  "permissions": ["clipboard-manager:allow-read-image"]
+  "permissions": ["allow-desktop-read-clipboard-image"]
 }

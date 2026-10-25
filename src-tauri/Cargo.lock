@@ -535,6 +535,7 @@ name = "cinny"
 version = "4.13.1"
 dependencies = [
  "base64 0.22.1",
+ "gtk",
  "notify-rust",
  "serde",
  "serde_json",

@@ -69,6 +69,9 @@ jobs:
           npm run test:p1 --prefix cinny
           npm run test:p2 --prefix cinny
           npm run test:routes --prefix cinny
+          npm run test:clipboard --prefix cinny
+          npm run test:editor-links --prefix cinny
+          npm run test:client-fixes --prefix cinny
           npm run typecheck --prefix cinny
       - name: Create disposable preview signing key
         run: |

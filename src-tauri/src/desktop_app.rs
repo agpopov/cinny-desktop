@@ -78,6 +78,7 @@ pub fn run() {
             desktop::desktop_get_settings,
             desktop::desktop_set_settings,
             desktop::desktop_show_window,
+            crate::linux_clipboard::desktop_read_clipboard_image,
         ])
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {

@@ -47,7 +47,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf xvfb xdotool imagemagick dbus-x11 gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-libav gstreamer1.0-gl
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf xvfb xdotool imagemagick dbus-x11 gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-libav gstreamer1.0-gl webkit2gtk-driver x11-xserver-utils
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
@@ -66,6 +66,9 @@ jobs:
           npm run test:p1 --prefix cinny
           npm run test:p2 --prefix cinny
           npm run test:routes --prefix cinny
+          npm run test:clipboard --prefix cinny
+          npm run test:editor-links --prefix cinny
+          npm run test:client-fixes --prefix cinny
           npm run typecheck --prefix cinny
       - name: Record source provenance
         env:
@@ -102,6 +105,11 @@ jobs:
             kill -0 "$app_pid"
             import -window root platform-artifacts/linux-startup.png
           '
+      - name: Linux screenshot clipboard regression in the packaged WebView
+        if: runner.os == 'Linux'
+        run: |
+          cinny/node_modules/.bin/esbuild cinny/tests/fixtures/clipboard-probe.ts --bundle --format=iife --platform=browser --outfile="$RUNNER_TEMP/clipboard-probe.js"
+          CINNY_BINARY="$PWD/src-tauri/target/x86_64-unknown-linux-gnu/release/cinny" CLIPBOARD_PROBE="$RUNNER_TEMP/clipboard-probe.js" TEST_OUTPUT="$PWD/platform-artifacts/clipboard" dbus-run-session -- python3 cinny/tests/e2e/linux_clipboard.py
       - name: Build macOS Universal packages with ad-hoc signing
         if: runner.os == 'macOS'
         env:

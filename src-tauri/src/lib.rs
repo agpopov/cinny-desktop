@@ -2,6 +2,8 @@
 mod desktop;
 #[cfg(desktop)]
 mod desktop_app;
+#[cfg(desktop)]
+mod linux_clipboard;
 #[cfg(target_os = "android")]
 mod mobile;
 
