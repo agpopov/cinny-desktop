@@ -12,9 +12,9 @@ on:
         description: Short-lived read-only GitHub debug asset URL
         default: ''
       expected_version:
-        default: '4.13.1'
+        default: '4.13.2'
       expected_version_code:
-        default: '4013001'
+        default: '4013002'
 permissions:
   contents: read
   actions: read
@@ -26,7 +26,7 @@ jobs:
       - uses: actions/download-artifact@v4
         if: inputs.build_run_id != ''
         with:
-          name: cinny-4.13.1-android-release
+          name: cinny-4.13.2-android-release
           path: android-artifacts
           run-id: ${{ inputs.build_run_id }}
           github-token: ${{ github.token }}
@@ -37,7 +37,7 @@ jobs:
           import json, os, pathlib, urllib.parse, urllib.request, shutil
           inputs=json.load(open(os.environ['GITHUB_EVENT_PATH']))['inputs']
           out=pathlib.Path('android-artifacts'); out.mkdir(exist_ok=True)
-          for key,name in [('preview_url','Cinny_4.13.1_android.apk'),('debug_url','app-universal-debug.apk')]:
+          for key,name in [('preview_url','Cinny_4.13.2_android.apk'),('debug_url','app-universal-debug.apk')]:
               url=inputs[key]
               parsed=urllib.parse.urlsplit(url)
               if parsed.scheme!='https' or parsed.hostname!='release-assets.githubusercontent.com':
@@ -80,7 +80,7 @@ jobs:
           profile: pixel_6
           disable-animations: true
           script: |
-            set -e; if test -f android-artifacts/Cinny_4.13.1_android.apk; then adb install -r android-artifacts/Cinny_4.13.1_android.apk; adb shell am start -n in.cinny.app/.MainActivity; sleep 25; ANDROID_TEST_VARIANT=native-release PYTHONPATH=tests/e2e python3 -c "from android_native import dump_ui; dump_ui('/sdcard/release-window.xml')"; adb pull /sdcard/release-window.xml android-artifacts/android-release-startup.xml; adb exec-out screencap -p > android-artifacts/android-release-startup.png; ANDROID_TEST_VARIANT=native-release python3 tests/e2e/android_native.py; adb shell am force-stop in.cinny.app; fi
+            set -e; if test -f android-artifacts/Cinny_4.13.2_android.apk; then adb install -r android-artifacts/Cinny_4.13.2_android.apk; adb shell am start -n in.cinny.app/.MainActivity; sleep 25; ANDROID_TEST_VARIANT=native-release PYTHONPATH=tests/e2e python3 -c "from android_native import dump_ui; dump_ui('/sdcard/release-window.xml')"; adb pull /sdcard/release-window.xml android-artifacts/android-release-startup.xml; adb exec-out screencap -p > android-artifacts/android-release-startup.png; ANDROID_TEST_VARIANT=native-release python3 tests/e2e/android_native.py; adb shell am force-stop in.cinny.app; fi
             adb uninstall in.cinny.app || true
             adb install -r android-artifacts/app-universal-debug.apk
             adb shell am start -n in.cinny.app/.MainActivity
