@@ -9,7 +9,7 @@ on:
       release_tag:
         description: Package version to validate
         required: true
-        default: v4.13.2
+        default: v4.13.3
       platform:
         description: Platforms to build
         type: choice
@@ -68,6 +68,7 @@ jobs:
           npm run test:routes --prefix cinny
           npm run test:clipboard --prefix cinny
           npm run test:editor-links --prefix cinny
+          npm run test:composer --prefix cinny
           npm run test:client-fixes --prefix cinny
           npm run typecheck --prefix cinny
       - name: Record source provenance
