@@ -83,7 +83,7 @@ jobs:
           if ($process.ExitCode -ne 0) { throw "NSIS install failed: $($process.ExitCode)" }
           $env:CINNY_BINARY = Join-Path $env:LOCALAPPDATA 'Cinny/cinny.exe'
           if (!(Test-Path $env:CINNY_BINARY)) { throw "Installed binary missing: $env:CINNY_BINARY" }
-          python tests/e2e/windows_native.py | Tee-Object windows-artifacts/native-test.log
+          python -X utf8 tests/e2e/windows_native.py | Tee-Object windows-artifacts/native-test.log
           if ($LASTEXITCODE -ne 0) { throw "Native Windows test failed: $LASTEXITCODE" }
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
