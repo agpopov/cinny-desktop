@@ -1,0 +1,31 @@
+name: Append verified platform installers
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        required: true
+        default: v4.13.6
+      platform_run_id:
+        required: true
+      android_run_id:
+        required: true
+permissions:
+  contents: write
+  actions: read
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Verify and attach existing platform packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          PLATFORM_RUN_ID: ${{ inputs.platform_run_id }}
+          ANDROID_RUN_ID: ${{ inputs.android_run_id }}
+        run: python3 scripts/append-platform-release.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cinny-${{ inputs.release_tag }}-release-verification
+          path: release-verification/
