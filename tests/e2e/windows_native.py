@@ -121,6 +121,25 @@ with webview_debug_policy(), (out / 'native-launch.log').open('w') as log:
             (out / 'session-requests.json').write_text(json.dumps(session_requests, indent=2))
             assert not errors, errors
             print('PASS installed Windows: saved session restores with cold and warm IndexedDB, real Rust crypto and rendered room; no Node global alias', flush=True)
+            # Exercise sends in the installed WebView2 using the web client's regression.
+            page.goto(origin + '/config.json')
+            page.evaluate('''async () => {
+                localStorage.clear();
+                for (const db of await indexedDB.databases()) {
+                    await new Promise((resolve,reject) => {
+                        const request = indexedDB.deleteDatabase(db.name);
+                        request.onsuccess = resolve;
+                        request.onerror = reject;
+                    });
+                }
+            }''')
+            page.unroute_all(behavior='wait')
+            import timeline_scroll
+            timeline_scroll.OUT = out / 'scroll'
+            timeline_scroll.OUT.mkdir(exist_ok=True)
+            timeline_scroll.scenario(browser, 'windows-webview2', 0, 25, 1280,
+                                     native_page=page, app_url=origin)
+            assert not errors, errors
             browser.close()
     finally:
         (out / 'runtime-errors.json').write_text(json.dumps(errors, indent=2))

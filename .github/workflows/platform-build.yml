@@ -9,7 +9,7 @@ on:
       release_tag:
         description: Package version to validate
         required: true
-        default: v4.13.3
+        default: v4.13.4
       platform:
         description: Platforms to build
         type: choice

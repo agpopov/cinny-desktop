@@ -13,7 +13,7 @@ on:
         default: false
       release_tag:
         description: Existing draft prerelease to populate
-        default: v4.13.3
+        default: v4.13.4
 
 permissions:
   contents: write
@@ -98,6 +98,7 @@ jobs:
             windows-artifacts/*.json
             windows-artifacts/*.png
             windows-artifacts/*.html
+            windows-artifacts/scroll/**
       - name: Publish release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
