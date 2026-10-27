@@ -113,14 +113,14 @@ jobs:
           umask 077
           printf '%s' "$CINNY_ANDROID_KEYSTORE_BASE64" | base64 --decode > "$release_key"
           tools="$ANDROID_HOME/build-tools/36.0.0"
-          apk=android-artifacts/Cinny_4.13.3_android.apk
-          aab=android-artifacts/Cinny_4.13.3_android-release.aab
+          apk=android-artifacts/Cinny_${{ env.EXPECTED_ANDROID_VERSION }}_android.apk
+          aab=android-artifacts/Cinny_${{ env.EXPECTED_ANDROID_VERSION }}_android-release.aab
           for pair in universal:android arm64:android-arm64 arm:android-arm32 x86_64:android-x86_64; do
             flavor="${pair%%:*}"
             suffix="${pair#*:}"
             python3 scripts/sign-android-apk.py \
               --input "src-tauri/gen/android/app/build/outputs/apk/$flavor/release/app-$flavor-release-unsigned.apk" \
-              --output "android-artifacts/Cinny_4.13.3_$suffix.apk" \
+              --output "android-artifacts/Cinny_${{ env.EXPECTED_ANDROID_VERSION }}_$suffix.apk" \
               --keystore "$release_key" --alias "$CINNY_ANDROID_KEY_ALIAS" \
               --report "android-artifacts/$suffix-signing.json"
           done
@@ -142,14 +142,14 @@ jobs:
           grep 'android.permission.CAMERA' android-artifacts/android-permissions.txt
           grep 'android.permission.RECORD_AUDIO' android-artifacts/android-permissions.txt
           grep 'android.permission.MODIFY_AUDIO_SETTINGS' android-artifacts/android-permissions.txt
-          grep "versionCode='4013003' versionName='4.13.3'" android-artifacts/android-package.txt
+          grep "versionCode='${{ env.EXPECTED_ANDROID_VERSION_CODE }}' versionName='${{ env.EXPECTED_ANDROID_VERSION }}'" android-artifacts/android-package.txt
       - name: Verify packaged adaptive and themed launcher icons
         run: |
           python3 - <<'ICON_CHECK'
           import os,re,subprocess,json
           from pathlib import Path
           tools=Path(os.environ.get('ANDROID_HOME','/tmp/cinny-android-sdk'))/'build-tools/36.0.0'
-          apk=Path(os.environ.get('CINNY_ICON_APK','android-artifacts/Cinny_4.13.3_android.apk'))
+          apk=Path(os.environ.get('CINNY_ICON_APK','android-artifacts/Cinny_${{ env.EXPECTED_ANDROID_VERSION }}_android.apk'))
           out=Path(os.environ.get('CINNY_ICON_OUTPUT','android-artifacts'));out.mkdir(parents=True,exist_ok=True)
           resources=subprocess.check_output([str(tools/'aapt2'),'dump','resources',str(apk)],text=True)
           foreground=re.search(r'resource (0x[0-9a-f]+) drawable/ic_cinny_foreground\b',resources).group(1)
@@ -196,11 +196,11 @@ jobs:
           profile: pixel_6
           disable-animations: true
           script: |
-            python3 tests/e2e/android_install.py --serial emulator-5554 --api 33 --apk android-artifacts/Cinny_4.13.3_android.apk --previous-apk "$RUNNER_TEMP/cinny-previous.apk" --output android-artifacts/api33-installation
+            python3 tests/e2e/android_install.py --serial emulator-5554 --api 33 --apk android-artifacts/Cinny_${{ env.EXPECTED_ANDROID_VERSION }}_android.apk --previous-apk "$RUNNER_TEMP/cinny-previous.apk" --output android-artifacts/api33-installation
             adb shell am force-stop in.cinny.app
-            adb install --no-streaming -r android-artifacts/Cinny_4.13.3_android-x86_64.apk
+            adb install --no-streaming -r android-artifacts/Cinny_${{ env.EXPECTED_ANDROID_VERSION }}_android-x86_64.apk
             adb uninstall in.cinny.app
-            adb install --no-streaming android-artifacts/Cinny_4.13.3_android-x86_64.apk
+            adb install --no-streaming android-artifacts/Cinny_${{ env.EXPECTED_ANDROID_VERSION }}_android-x86_64.apk
       - name: Native Android emulator smoke test
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -209,7 +209,7 @@ jobs:
           profile: pixel_6
           disable-animations: true
           script: |
-            adb install -r android-artifacts/Cinny_4.13.3_android.apk
+            adb install -r android-artifacts/Cinny_${{ env.EXPECTED_ANDROID_VERSION }}_android.apk
             adb shell am start -n in.cinny.app/.MainActivity
             sleep 25
             adb shell pidof in.cinny.app
@@ -235,6 +235,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: cinny-4.13.3-android-release
+          name: cinny-${{ env.EXPECTED_ANDROID_VERSION }}-android-release
           path: android-artifacts/
           if-no-files-found: error
