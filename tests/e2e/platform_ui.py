@@ -78,7 +78,7 @@ with sync_playwright() as p:
             page.goto(APP+'/home/');page.get_by_role('button',name='User Settings',exact=True).click()
             page.get_by_text('Notifications',exact=True).click()
             page.get_by_text('Системные уведомления',exact=True).wait_for()
-            check('mobile settings hide desktop-only controls',page.get_by_text('Запускать при входе в систему',exact=True).count()==0)
+            check('mobile settings hide desktop-only controls',page.get_by_text('Запускать при старте системы',exact=True).count()==0)
             check('mobile settings explain background delivery status',page.get_by_text('Доставка при закрытом приложении ещё не подключена.',exact=False).count()>0)
             page.screenshot(path=str(out/'android-notification-settings.png'))
             page.evaluate('window.__permission="denied";window.dispatchEvent(new Event("focus"));')

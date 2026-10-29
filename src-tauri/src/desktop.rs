@@ -251,7 +251,7 @@ pub fn setup_tray(app: &AppHandle<Wry>) -> tauri::Result<()> {
     let autostart = CheckMenuItem::with_id(
         app,
         "autostart",
-        "Запускать вместе с Windows",
+        "Запускать при старте системы",
         true,
         app.autolaunch().is_enabled().unwrap_or(false),
         None::<&str>,
