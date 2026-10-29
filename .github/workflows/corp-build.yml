@@ -4,6 +4,13 @@ on:
     tags: ["v*"]
   workflow_dispatch:
     inputs:
+      bundles:
+        description: Windows installers to build
+        type: choice
+        options:
+          - msi,nsis
+          - nsis
+        default: msi,nsis
       build_run_id:
         description: Existing Windows run to validate without recompiling (empty means build)
         default: ''
@@ -58,7 +65,7 @@ jobs:
         run: npm ci
       - name: Build desktop app with Tauri
         if: inputs.build_run_id == ''
-        run: npm run tauri build
+        run: npm run tauri -- build --bundles "${{ inputs.bundles || 'msi,nsis' }}"
         env:
           NODE_OPTIONS: "--max_old_space_size=4096"
       - name: Download an existing Windows build
