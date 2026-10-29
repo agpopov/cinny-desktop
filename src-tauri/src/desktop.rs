@@ -358,6 +358,9 @@ pub fn setup_tray(app: &AppHandle<Wry>) -> tauri::Result<()> {
         autostart: Some(autostart),
         close_to_tray: Some(close_to_tray),
     };
+    // The tray did not exist when its menu was constructed, so
+    // should_hide_on_close() could not reflect the saved preference yet.
+    sync_menu_checks(app);
     Ok(())
 }
 
