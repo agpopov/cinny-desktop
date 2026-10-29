@@ -30,6 +30,13 @@ def wait_for(check, label):
     raise AssertionError(label)
 
 
+def close_setting():
+    try:
+        return json.loads(config.read_text())['closeToTray']
+    except (OSError, ValueError):
+        return None
+
+
 agent = Path.home() / 'Library/LaunchAgents/Cinny.plist'
 before = agent.read_bytes() if agent.exists() else None
 config = Path.home() / 'Library/Application Support/in.cinny.app/desktop-settings.json'
@@ -60,12 +67,12 @@ try:
     menu_item('Открыть Cinny')
     wait_for(lambda: int(apple('get count of windows')) > 0, 'Tray did not restore window')
     menu_item('Сворачивать в трей при закрытии')
-    assert json.loads(config.read_text())['closeToTray'] is False
+    wait_for(lambda: close_setting() is False, 'Close-to-tray disable did not persist')
     menu_item('Сворачивать в трей при закрытии')
-    assert json.loads(config.read_text())['closeToTray'] is True
+    wait_for(lambda: close_setting() is True, 'Close-to-tray enable did not persist')
     subprocess.run(['screencapture', '-x', str(OUT / 'macos-settings.png')], check=True)
     menu_item('Сворачивать в трей при закрытии')
-    assert json.loads(config.read_text())['closeToTray'] is False
+    wait_for(lambda: close_setting() is False, 'Close-to-tray disable did not persist')
     apple('click (first button of window 1 whose subrole is "AXCloseButton")')
     wait_for(lambda: app.poll() is not None, 'Close without tray did not exit')
     (OUT / 'macos-settings.json').write_text(json.dumps({'launch_agent_enable_disable': True, 'registered_args': args, 'close_hides': True, 'tray_restores': True, 'close_setting_persists': True, 'close_without_tray_exits': True}, indent=2))
