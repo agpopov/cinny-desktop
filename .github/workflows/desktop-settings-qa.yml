@@ -1,0 +1,81 @@
+name: Desktop settings QA (existing packages)
+on:
+  workflow_dispatch:
+    inputs:
+      platform_run_id:
+        description: Completed platform build run containing the packages
+        required: true
+      release_tag:
+        description: Version of the packages to validate
+        default: v4.14.5
+        required: true
+permissions:
+  contents: read
+  actions: read
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Select package artifact
+        id: artifact
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then
+            echo 'name=cinny-${{ inputs.release_tag }}-linux-x86_64' >> "$GITHUB_OUTPUT"
+          else
+            echo 'name=cinny-${{ inputs.release_tag }}-macos-universal' >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.artifact.outputs.name }}
+          path: package
+          run-id: ${{ inputs.platform_run_id }}
+          github-token: ${{ github.token }}
+      - name: Verify and unpack package
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          python3 - <<'CHECK'
+          import hashlib, os
+          from pathlib import Path
+          version = os.environ['RELEASE_TAG'].removeprefix('v')
+          directory = Path('package')
+          names = [f'Cinny_{version}_amd64.deb', f'Cinny_{version}_universal.app.zip']
+          sums = dict(line.split('  ', 1)[::-1] for line in (directory/'SHA256SUMS').read_text().splitlines())
+          for name in names:
+              path = directory/name
+              if path.exists():
+                  assert hashlib.sha256(path.read_bytes()).hexdigest() == sums[name], name
+          CHECK
+          mkdir -p settings-qa package/root
+          cp package/*-source.txt settings-qa/
+          if [ "$RUNNER_OS" = Linux ]; then
+            dpkg-deb -x package/*.deb package/root
+          else
+            ditto -x -k package/*.app.zip package/root
+          fi
+      - name: Install Linux test dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-0 libayatana-appindicator3-1 webkit2gtk-driver xvfb python3-dbus python3-gi python3-xlib
+      - name: Verify Linux autostart and tray
+        if: runner.os == 'Linux'
+        run: CINNY_BINARY="$PWD/package/root/usr/bin/cinny" TEST_OUTPUT="$PWD/settings-qa" xvfb-run -a dbus-run-session -- python3 tests/e2e/desktop_settings_linux.py
+      - name: Verify macOS autostart and tray
+        if: runner.os == 'macOS'
+        run: CINNY_BINARY="$PWD/package/root/Cinny.app/Contents/MacOS/cinny" TEST_OUTPUT="$PWD/settings-qa" python3 tests/e2e/desktop_settings_macos.py
+      - name: Record verification source
+        if: always()
+        run: |
+          mkdir -p settings-qa
+          git rev-parse HEAD > settings-qa/test-source.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: settings-qa-${{ matrix.os }}
+          path: settings-qa/
