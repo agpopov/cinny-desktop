@@ -17,6 +17,7 @@ from session_fixture import ROOM, install_session_fixture, seed_session, assert_
 from session_navigation import assert_client_navigation
 from tenor_previews import assert_tenor_preview
 from new_threads import assert_new_thread
+from new_thread_content import assert_new_thread_content
 from media_only import assert_media_only
 from desktop_settings_windows import assert_windows_settings
 
@@ -127,6 +128,7 @@ with webview_debug_policy(), (out / 'native-launch.log').open('w') as log:
             print('PASS installed Windows: saved session restores with cold and warm IndexedDB, real Rust crypto and rendered room; no Node global alias', flush=True)
             assert_tenor_preview(page, out)
             assert_new_thread(page, out)
+            assert_new_thread_content(page, out)
             assert_media_only(page, out)
             # Exercise sends in the installed WebView2 using the web client's regression.
             page.goto(origin + '/config.json')
