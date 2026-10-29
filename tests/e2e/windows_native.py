@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'cinny/tests/e2e'))
 from session_fixture import ROOM, install_session_fixture, seed_session, assert_session_ready
 from session_navigation import assert_client_navigation
 from tenor_previews import assert_tenor_preview
+from new_threads import assert_new_thread
 
 out = Path('windows-artifacts')
 out.mkdir(exist_ok=True)
@@ -123,6 +124,7 @@ with webview_debug_policy(), (out / 'native-launch.log').open('w') as log:
             assert not errors, errors
             print('PASS installed Windows: saved session restores with cold and warm IndexedDB, real Rust crypto and rendered room; no Node global alias', flush=True)
             assert_tenor_preview(page, out)
+            assert_new_thread(page, out)
             # Exercise sends in the installed WebView2 using the web client's regression.
             page.goto(origin + '/config.json')
             page.evaluate('''async () => {

@@ -59,7 +59,7 @@ jobs:
           .\wry-frame-tests.exe
       - name: Test unread receipt handling
         if: inputs.build_run_id == ''
-        run: cd cinny && npm run test:unread:source && npm run test:mentions && npm run test:media && npm run test:stickers && npm run test:key-export && npm run test:p1 && npm run test:p2 && npm run test:routes && npm run test:clipboard && npm run test:editor-links && npm run test:composer && npm run test:client-fixes && npm run typecheck
+        run: cd cinny && npm run test:unread:source && npm run test:mentions && npm run test:media && npm run test:stickers && npm run test:key-export && npm run test:p1 && npm run test:p2 && npm run test:routes && npm run test:clipboard && npm run test:editor-links && npm run test:composer && npm run test:client-fixes && npm run test:threads && npm run typecheck
       - name: Install tauri dependencies
         if: inputs.build_run_id == ''
         run: npm ci
