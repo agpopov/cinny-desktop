@@ -218,6 +218,35 @@ fn sync_menu_checks(app: &AppHandle<Wry>) {
     }
 }
 
+fn set_autostart(app: &AppHandle<Wry>, enabled: bool) -> Result<(), String> {
+    let launcher = app.autolaunch();
+    if enabled {
+        launcher.enable().map_err(|error| error.to_string())?;
+        // auto-launch 0.5 writes an unquoted Windows command. Quote the
+        // executable so installs under paths containing spaces also start.
+        #[cfg(target_os = "windows")]
+        {
+            let executable = std::env::current_exe().map_err(|error| error.to_string())?;
+            let key = winreg::RegKey::predef(winreg::enums::HKEY_CURRENT_USER)
+                .open_subkey_with_flags(
+                    "Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+                    winreg::enums::KEY_SET_VALUE,
+                )
+                .map_err(|error| error.to_string())?;
+            key.set_value(
+                app.package_info().name.as_str(),
+                &format!("\"{}\" {}", executable.display(), MINIMIZED_ARG),
+            )
+            .map_err(|error| error.to_string())?;
+        }
+    } else if launcher.is_enabled().map_err(|error| error.to_string())? {
+        // Disabling an already absent Windows Run value otherwise returns
+        // ERROR_FILE_NOT_FOUND instead of accepting the requested state.
+        launcher.disable().map_err(|error| error.to_string())?;
+    }
+    Ok(())
+}
+
 pub fn setup_tray(app: &AppHandle<Wry>) -> tauri::Result<()> {
     let open = MenuItem::with_id(app, "open", "Открыть Cinny", true, None::<&str>)?;
 
@@ -321,11 +350,7 @@ pub fn setup_tray(app: &AppHandle<Wry>) -> tauri::Result<()> {
             "autostart" => {
                 let launcher = app.autolaunch();
                 let enabled = launcher.is_enabled().unwrap_or(false);
-                let _ = if enabled {
-                    launcher.disable()
-                } else {
-                    launcher.enable()
-                };
+                let _ = set_autostart(app, !enabled);
                 sync_menu_checks(app);
             }
             "close-to-tray" => {
@@ -651,13 +676,7 @@ pub fn desktop_set_settings(
         save_settings(&app, &settings);
     }
     if let Some(enable) = patch.autostart {
-        let launcher = app.autolaunch();
-        let res = if enable {
-            launcher.enable()
-        } else {
-            launcher.disable()
-        };
-        res.map_err(|e| e.to_string())?;
+        set_autostart(&app, enable)?;
     }
     sync_menu_checks(&app);
     Ok(desktop_get_settings(app))

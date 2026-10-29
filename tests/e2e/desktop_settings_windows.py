@@ -71,9 +71,11 @@ def assert_windows_settings(page, app, binary, env, chromium, output):
     entries = run_entries()
     assert len(entries) == 1 and '--minimized' in entries[0][1], entries
     command = entries[0][1]
+    assert command.startswith('"'), command
     control.click()
     expect(control).to_have_attribute('aria-checked', 'false')
     assert not run_entries()
+    assert invoke('desktop_set_settings', {'patch': {'autostart': False}})['autostart'] is False
     page.screenshot(path=str(output / 'windows-desktop-settings.png'))
     invoke('desktop_set_settings', {'patch': {'closeToTray': True, 'startMinimized': True}})
     hwnd = window(app.pid)
