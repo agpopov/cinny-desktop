@@ -2,6 +2,11 @@ name: Desktop settings QA (existing packages)
 on:
   workflow_dispatch:
     inputs:
+      platform:
+        description: Desktop platform to validate
+        type: choice
+        options: [all, linux, macos]
+        default: all
       platform_run_id:
         description: Completed platform build run containing the packages
         required: true
@@ -17,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-15-intel]
+        os: ${{ inputs.platform == 'linux' && fromJSON('["ubuntu-22.04"]') || inputs.platform == 'macos' && fromJSON('["macos-15-intel"]') || fromJSON('["ubuntu-22.04","macos-15-intel"]') }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
