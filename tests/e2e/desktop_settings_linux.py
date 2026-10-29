@@ -1,4 +1,5 @@
 """Validate autostart and close-to-tray in an existing Linux package, without building."""
+import base64
 import json
 import os
 from pathlib import Path
@@ -75,7 +76,7 @@ def wait_for(check, label):
 
 driver = subprocess.Popen(['WebKitWebDriver', '--port=4456', '--host=127.0.0.1'],
                           stdout=(OUT / 'driver.log').open('w'), stderr=subprocess.STDOUT)
-entry = Path.home() / '.config/autostart/cinny.desktop'
+entry = Path.home() / '.config/autostart/Cinny.desktop'
 before = entry.read_bytes() if entry.exists() else None
 session = None
 try:
@@ -122,12 +123,14 @@ try:
     assert invoke('desktop_get_settings')['closeToTray'] is True
     invoke('desktop_show_window')
     wait_for(lambda: window.get_attributes().map_state == X.IsViewable, 'Tray restore did not show window')
-    request(endpoint + '/screenshot')
+    (OUT / 'linux-settings.png').write_bytes(base64.b64decode(request(endpoint + '/screenshot')))
     invoke('desktop_set_settings', {'patch': {'closeToTray': False}})
     assert invoke('desktop_get_settings')['closeToTray'] is False
     state = Path.home() / '.config/in.cinny.app/desktop-settings.json'
     assert json.loads(state.read_text())['closeToTray'] is False
-    (OUT / 'linux-settings.json').write_text(json.dumps({'autostart_enable_disable': True, 'desktop_entry': desktop_entry, 'tray_registered': True, 'close_hides': True, 'restore_shows': True, 'settings_persisted': True}, indent=2))
+    close_window()
+    wait_for(lambda: subprocess.run(['pgrep', '-x', 'cinny'], stdout=subprocess.DEVNULL).returncode != 0, 'Close without tray did not exit')
+    (OUT / 'linux-settings.json').write_text(json.dumps({'autostart_enable_disable': True, 'desktop_entry': desktop_entry, 'tray_registered': True, 'close_hides': True, 'restore_shows': True, 'settings_persisted': True, 'close_without_tray_exits': True}, indent=2))
     print('PASS Linux native package: actual autostart registration/removal, StatusNotifier tray, close hides, restore shows, setting persists', flush=True)
 finally:
     if session:

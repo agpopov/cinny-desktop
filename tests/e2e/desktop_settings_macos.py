@@ -30,7 +30,7 @@ def wait_for(check, label):
     raise AssertionError(label)
 
 
-agent = Path.home() / 'Library/LaunchAgents/cinny.plist'
+agent = Path.home() / 'Library/LaunchAgents/Cinny.plist'
 before = agent.read_bytes() if agent.exists() else None
 config = Path.home() / 'Library/Application Support/in.cinny.app/desktop-settings.json'
 config.parent.mkdir(parents=True, exist_ok=True)
@@ -64,7 +64,11 @@ try:
     menu_item('Сворачивать в трей при закрытии')
     assert json.loads(config.read_text())['closeToTray'] is True
     subprocess.run(['screencapture', '-x', str(OUT / 'macos-settings.png')], check=True)
-    (OUT / 'macos-settings.json').write_text(json.dumps({'launch_agent_enable_disable': True, 'registered_args': args, 'close_hides': True, 'tray_restores': True, 'close_setting_persists': True}, indent=2))
+    menu_item('Сворачивать в трей при закрытии')
+    assert json.loads(config.read_text())['closeToTray'] is False
+    apple('click (first button of window 1 whose subrole is "AXCloseButton")')
+    wait_for(lambda: app.poll() is not None, 'Close without tray did not exit')
+    (OUT / 'macos-settings.json').write_text(json.dumps({'launch_agent_enable_disable': True, 'registered_args': args, 'close_hides': True, 'tray_restores': True, 'close_setting_persists': True, 'close_without_tray_exits': True}, indent=2))
     print('PASS macOS native package: actual LaunchAgent enable/disable, close-to-tray, menu restore and persisted setting', flush=True)
 finally:
     try:
